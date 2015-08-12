@@ -1,5 +1,7 @@
 package nl.knaw.dans.easy.update_fs_rdb
 
+import java.sql.DriverManager
+
 import com.yourmediashelf.fedora.client.request.FedoraRequest
 import com.yourmediashelf.fedora.client.{FedoraClient, FedoraCredentials}
 import org.slf4j.LoggerFactory
@@ -19,6 +21,7 @@ object Main {
 
     implicit val s = Settings(
       fedoraCredentials = new FedoraCredentials("http://deasy:8080/fedora", "fedoraAdmin", "fedoraAdmin"),
+      postgresURL = "jdbc:postgresql://deasy:5432/easy_db?user=easy_webui&password=easy_webui",
       datasetPid = "easy-dataset:39")
 
     FedoraRequest.setDefaultClient(new FedoraClient(s.fedoraCredentials))
@@ -26,24 +29,21 @@ object Main {
     val result = for {
       pids <- findPids()
       _ = pids.foreach(log.info)
-      xs <- getDigitalObjects(pids).sequence
-    } yield xs.foreach(println)
+      dos <- getDigitalObjects(pids).sequence.map(_.sortBy(_.path))
+      _ <- updateDB(dos)
+    } yield dos.foreach(println)
 
     result.get
   }
 
   def getDigitalObjects(pids: List[String])(implicit s: Settings): List[Try[DigitalObject]] = {
     pids.map(pid =>
-      if (pid.startsWith(NS_EASY_FILE)) {
+      if (pid.startsWith(NS_EASY_FILE))
         getObjectXML(pid).flatMap(getEasyFile(pid))
-      }
-      else if (pid.startsWith(NS_EASY_FOLDER)) {
+      else if (pid.startsWith(NS_EASY_FOLDER))
         getObjectXML(pid).flatMap(getEasyFolder(pid))
-      }
-      else {
-        Failure(new RuntimeException(s"Unknown namespace for PID: $pid"))
-      }
-    )
+      else
+        Failure(new RuntimeException(s"Unknown namespace for PID: $pid")))
   }
 
   def getObjectXML(pid: String): Try[Elem] = Try {
@@ -105,6 +105,7 @@ object Main {
   def findPids()(implicit s: Settings): Try[List[String]] = Try {
     val url = s"${s.fedoraCredentials.getBaseUrl}/risearch"
     val response = Http(url)
+      .timeout(connTimeoutMs = 10000, readTimeoutMs = 50000)
       .param("type", "tuples")
       .param("lang", "sparql")
       .param("format", "CSV")
@@ -115,5 +116,40 @@ object Main {
     response.body.lines.toList.drop(1)
       .map(_.replace("info:fedora/", ""))
       .filter(pid => namespaces.exists(pid.startsWith))
+  }
+
+  def updateDB(DOs: Seq[DigitalObject])(implicit s: Settings): Try[Unit] = Try {
+    classOf[org.postgresql.Driver]
+    val conn = DriverManager.getConnection(s.postgresURL)
+    try {
+      DOs.foreach({
+        case folder: EasyFolder =>
+          val statement = conn.prepareStatement("INSERT INTO easy_folders (pid,path,name,parent_sid,dataset_sid) VALUES (?,?,?,?,?)")
+          statement.setString(1, folder.pid)
+          statement.setString(2, folder.path)
+          statement.setString(3, folder.name)
+          statement.setString(4, folder.parentSid)
+          statement.setString(5, folder.datasetSid)
+          statement.executeUpdate()
+          statement.closeOnCompletion()
+        case file: EasyFile =>
+          val statement = conn.prepareStatement("INSERT INTO easy_files (pid,parent_sid,dataset_sid,path,filename,size,mimetype,creator_role,visible_to,accessible_to,sha1checksum) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+          statement.setString(1, file.pid)
+          statement.setString(2, file.parentSid)
+          statement.setString(3, file.datasetSid)
+          statement.setString(4, file.path)
+          statement.setString(5, file.filename)
+          statement.setInt(6, file.size)
+          statement.setString(7, file.mimetype)
+          statement.setString(8, file.creatorRole)
+          statement.setString(9, file.visibleTo)
+          statement.setString(10, file.accessibleTo)
+          statement.setString(11, file.sha1checksum)
+          statement.executeUpdate()
+          statement.closeOnCompletion()
+      })
+    } finally {
+      conn.close()
+    }
   }
 }
