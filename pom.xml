@@ -12,7 +12,7 @@
     <artifactId>easy-update-fs-rdb</artifactId>
     <version>1.0-SNAPSHOT</version>
     <properties>
-        <main-class>nl.knaw.dans.easy.update_fs_rdb.Main</main-class>
+        <main-class>nl.knaw.dans.easy.fsrdb.CLI</main-class>
     </properties>
     <dependencies>
         <dependency>
@@ -51,6 +51,15 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>9.4-1201-jdbc41</version>
+        </dependency>
+        <dependency>
+            <groupId>org.rogach</groupId>
+            <artifactId>scallop_2.11</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>commons-configuration</groupId>
+            <artifactId>commons-configuration</artifactId>
+            <version>1.10</version>
         </dependency>
     </dependencies>
     <build>
