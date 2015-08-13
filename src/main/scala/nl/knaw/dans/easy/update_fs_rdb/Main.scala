@@ -35,19 +35,19 @@ object Main {
     val result = for {
       pids <- findPids()
       _ = pids.foreach(pid => log.info(s"Found digital object: $pid"))
-      dos <- getDigitalObjects(pids).sequence.map(_.sortBy(_.path))
-      _ <- updateDB(dos)
+      items <- getItems(pids).sequence.map(_.sortBy(_.path))
+      _ <- updateDB(items)
     } yield log.info("Completed succesfully")
 
     result.get
   }
 
-  def getDigitalObjects(pids: List[String])(implicit s: Settings): List[Try[DigitalObject]] = {
+  def getItems(pids: List[String])(implicit s: Settings): List[Try[Item]] = {
     pids.map(pid =>
       if (pid.startsWith(NS_EASY_FILE))
-        getObjectXML(pid).flatMap(getEasyFile(pid))
+        getObjectXML(pid).flatMap(getFileItem(pid))
       else if (pid.startsWith(NS_EASY_FOLDER))
-        getObjectXML(pid).flatMap(getEasyFolder(pid))
+        getObjectXML(pid).flatMap(getFolderItem(pid))
       else
         Failure(new RuntimeException(s"Unknown namespace for PID: $pid")))
   }
@@ -56,7 +56,7 @@ object Main {
     XML.load(FedoraClient.getObjectXML(pid).execute().getEntityInputStream)
   }
 
-  def getEasyFile(pid: String)(objectXML: Elem)(implicit s: Settings): Try[EasyFile] = Try {
+  def getFileItem(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FileItem] = Try {
     val result = for {
       metadataDS <- objectXML \ "datastream"
       if (metadataDS \ "@ID").text == "EASY_FILE_METADATA"
@@ -70,7 +70,7 @@ object Main {
       if (relsExtDS \ "@ID").text == "RELS-EXT"
       isMemberOf <- relsExtDS \ "datastreamVersion" \ "xmlContent" \ "RDF" \ "Description" \ "isMemberOf"
       parentSid = isMemberOf.attribute("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "resource").get
-    } yield EasyFile(
+    } yield FileItem(
         pid = pid,
         parentSid = parentSid.text.replace("info:fedora/", ""),
         datasetSid = s.datasetPid,
@@ -87,7 +87,7 @@ object Main {
     result.head
   }
 
-  def getEasyFolder(pid: String)(objectXML: Elem)(implicit s: Settings): Try[EasyFolder] = Try {
+  def getFolderItem(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FolderItem] = Try {
     val result = for {
       metadataDS <- objectXML \ "datastream"
       if (metadataDS \ "@ID").text == "EASY_ITEM_CONTAINER_MD"
@@ -97,7 +97,7 @@ object Main {
       if (relsExtDS \ "@ID").text == "RELS-EXT"
       isMemberOf <- relsExtDS \ "datastreamVersion" \ "xmlContent" \ "RDF" \ "Description" \ "isMemberOf"
       parentSid = isMemberOf.attribute("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "resource").get
-    } yield EasyFolder(
+    } yield FolderItem(
         pid = pid,
         parentSid = parentSid.text.replace("info:fedora/", ""),
         datasetSid = s.datasetPid,
@@ -115,7 +115,12 @@ object Main {
       .param("type", "tuples")
       .param("lang", "sparql")
       .param("format", "CSV")
-      .param("query", s"select ?s from <#ri> where { ?s <http://dans.knaw.nl/ontologies/relations#isSubordinateTo> <info:fedora/${s.datasetPid}> . }")
+      .param("query",
+        s"""
+           |select ?s
+           |from <#ri>
+           |where { ?s <http://dans.knaw.nl/ontologies/relations#isSubordinateTo> <info:fedora/${s.datasetPid}> . }
+        """.stripMargin)
       .asString
     if (response.code != 200)
       throw new RuntimeException(s"Failed to query fedora resource index ($url), response code: ${response.code}")
@@ -124,19 +129,19 @@ object Main {
       .filter(pid => namespaces.exists(pid.startsWith))
   }
 
-  def updateDB(DOs: List[DigitalObject])(implicit s: Settings): Try[Unit] = Try {
+  def updateDB(items: List[Item])(implicit s: Settings): Try[Unit] = Try {
     val conn = DriverManager.getConnection(s.postgresURL)
     try {
-      DOs.foreach {
-        case folder: EasyFolder => updateOrInsertFolder(conn, folder).get
-        case file: EasyFile => updateOrInsertFile(conn, file).get
+      items.foreach {
+        case folder: FolderItem => updateOrInsertFolder(conn, folder).get
+        case file: FileItem => updateOrInsertFile(conn, file).get
       }
     } finally {
       conn.close()
     }
   }
 
-  def updateOrInsertFolder(conn: Connection, folder: EasyFolder): Try[Unit] = {
+  def updateOrInsertFolder(conn: Connection, folder: FolderItem): Try[Unit] = {
     try {
       log.info(s"Attempting to update ${folder.pid} with $folder")
       val statement = conn.prepareStatement("UPDATE easy_folders SET path = ?, name = ?, parent_sid = ?, dataset_sid = ? WHERE pid = ?")
@@ -156,7 +161,7 @@ object Main {
     }
   }
 
-  def insertFolder(conn: Connection, folder: EasyFolder): Try[Unit] = Try {
+  def insertFolder(conn: Connection, folder: FolderItem): Try[Unit] = Try {
     log.info(s"Attempting to insert ${folder.pid}")
     val statement = conn.prepareStatement("INSERT INTO easy_folders (pid,path,name,parent_sid,dataset_sid) VALUES (?,?,?,?,?)")
     statement.setString(1, folder.pid)
@@ -168,7 +173,7 @@ object Main {
     statement.closeOnCompletion()
   }
 
-  def updateOrInsertFile(conn: Connection, file: EasyFile): Try[Unit] = {
+  def updateOrInsertFile(conn: Connection, file: FileItem): Try[Unit] = {
     try {
       log.info(s"Attempting to update ${file.pid} with $file")
       val statement = conn.prepareStatement("UPDATE easy_files SET parent_sid = ?, dataset_sid = ?,path  = ?, filename = ?, size = ?, mimetype = ?, creator_role = ?, visible_to = ?, accessible_to = ?, sha1checksum = ? WHERE pid = ?")
@@ -194,7 +199,7 @@ object Main {
     }
   }
 
-  def insertFile(conn: Connection, file: EasyFile): Try[Unit] = Try {
+  def insertFile(conn: Connection, file: FileItem): Try[Unit] = Try {
     log.info(s"Attempting to insert ${file.pid}")
     val statement = conn.prepareStatement("INSERT INTO easy_files (pid,parent_sid,dataset_sid,path,filename,size,mimetype,creator_role,visible_to,accessible_to,sha1checksum) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
     statement.setString(1, file.pid)
