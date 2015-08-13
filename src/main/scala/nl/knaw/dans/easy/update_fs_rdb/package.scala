@@ -10,18 +10,18 @@ package object update_fs_rdb {
                       postgresURL: String,
                       datasetPid: String)
 
-  abstract class DigitalObject(val pid: String,
+  abstract class Item(val pid: String,
                                val parentSid: String,
                                val datasetSid: String,
                                val path: String)
 
-  case class EasyFolder(override val pid: String,
+  case class FolderItem(override val pid: String,
                         override val parentSid: String,
                         override val datasetSid: String,
                         override val path: String,
-                        name: String) extends DigitalObject(pid, parentSid, datasetSid, path)
+                        name: String) extends Item(pid, parentSid, datasetSid, path)
 
-  case class EasyFile(override val pid: String,
+  case class FileItem(override val pid: String,
                       override val parentSid: String,
                       override val datasetSid: String,
                       override val path: String,
@@ -31,7 +31,7 @@ package object update_fs_rdb {
                       creatorRole: String,
                       visibleTo: String,
                       accessibleTo: String,
-                      sha1checksum: String) extends DigitalObject(pid, parentSid, datasetSid, path)
+                      sha1checksum: String) extends Item(pid, parentSid, datasetSid, path)
 
   class CompositeException(throwables: List[Throwable]) extends RuntimeException(throwables.foldLeft("")((msg, t) => s"$msg\n${t.getMessage}"))
 
