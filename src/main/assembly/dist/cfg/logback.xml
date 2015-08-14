@@ -8,5 +8,5 @@
     <root level="error">
         <appender-ref ref="CONSOLE" />
     </root>
-    <logger name="nl.knaw.dans.easy.update_fs_rdb" level="info" />
+    <logger name="nl.knaw.dans.easy.fsrdb" level="info" />
 </configuration>

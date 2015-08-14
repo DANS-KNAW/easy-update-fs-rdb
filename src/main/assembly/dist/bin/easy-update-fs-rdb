@@ -1,5 +1,4 @@
 #!/bin/bash
 
-java -Dlogback.configurationFile=$EASY_UPDATE_FS_RDB_DATASET_HOME/cfg/logback.xml \
-     -Dconfig.file=$EASY_UPDATE_FS_RDB_DATASET_HOME/cfg/application.conf \
-     -jar $EASY_UPDATE_FS_RDB_DATASET_HOME/bin/easy-update-fs-rdb.jar $@
+java -Dlogback.configurationFile=$EASY_UPDATE_FS_RDB_HOME/cfg/logback.xml \
+     -jar $EASY_UPDATE_FS_RDB_HOME/bin/easy-update-fs-rdb.jar $@

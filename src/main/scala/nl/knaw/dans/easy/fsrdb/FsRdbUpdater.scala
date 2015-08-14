@@ -1,38 +1,28 @@
-package nl.knaw.dans.easy.update_fs_rdb
+package nl.knaw.dans.easy.fsrdb
 
 import java.sql.{Connection, DriverManager}
 
+import com.yourmediashelf.fedora.client.FedoraClient
 import com.yourmediashelf.fedora.client.request.FedoraRequest
-import com.yourmediashelf.fedora.client.{FedoraClient, FedoraCredentials}
 import org.slf4j.LoggerFactory
 
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 import scala.xml.{Elem, XML}
 import scalaj.http.Http
 
-object Main {
+object FsRdbUpdater {
+  val loadDriver = classOf[org.postgresql.Driver]
   val log = LoggerFactory.getLogger(getClass)
 
   val NS_EASY_FILE = "easy-file"
   val NS_EASY_FOLDER = "easy-folder"
   val namespaces = List(NS_EASY_FILE, NS_EASY_FOLDER)
 
-  def main(args: Array[String]) {
-    classOf[org.postgresql.Driver]
-
-    if (args.length != 1) {
-      println("Error: You must provide the dataset PID as an argument.\nUsage example: ./update_fs_rdb easy-dataset:13")
-      return
-    }
-
-    implicit val s = Settings(
-      fedoraCredentials = new FedoraCredentials("http://deasy:8080/fedora", "fedoraAdmin", "fedoraAdmin"),
-      postgresURL = "jdbc:postgresql://deasy:5432/easy_db?user=easy_webui&password=easy_webui",
-      datasetPid = args(0))
-
+  def run()(implicit s: Settings) {
     FedoraRequest.setDefaultClient(new FedoraClient(s.fedoraCredentials))
 
     val result = for {
+      _ <- existsDataset()
       pids <- findPids()
       _ = pids.foreach(pid => log.info(s"Found digital object: $pid"))
       items <- getItems(pids).sequence.map(_.sortBy(_.path))
@@ -40,6 +30,12 @@ object Main {
     } yield log.info("Completed succesfully")
 
     result.get
+  }
+
+  def existsDataset()(implicit s: Settings): Try[Unit] = Try {
+    if(FedoraClient.findObjects()
+      .pid().query(s"pid~${s.datasetPid}").execute().getPids.isEmpty)
+      throw new RuntimeException(s"Dataset not found: ${s.datasetPid}")
   }
 
   def getItems(pids: List[String])(implicit s: Settings): List[Try[Item]] = {
