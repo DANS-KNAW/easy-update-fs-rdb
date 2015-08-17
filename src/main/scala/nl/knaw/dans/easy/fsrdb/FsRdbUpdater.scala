@@ -58,10 +58,6 @@ object FsRdbUpdater {
       if (metadataDS \ "@ID").text == "EASY_FILE_METADATA"
       metadata <- metadataDS \ "datastreamVersion" \ "xmlContent" \ "file-item-md"
 
-      fileDS <- objectXML \ "datastream"
-      if (fileDS \ "@ID").text == "EASY_FILE"
-      digest <- fileDS \ "datastreamVersion" \ "contentDigest" \ "@DIGEST"
-
       relsExtDS <- objectXML \ "datastream"
       if (relsExtDS \ "@ID").text == "RELS-EXT"
       isMemberOf <- relsExtDS \ "datastreamVersion" \ "xmlContent" \ "RDF" \ "Description" \ "isMemberOf"
@@ -76,8 +72,7 @@ object FsRdbUpdater {
         mimetype = (metadata \ "mimeType").text,
         creatorRole = (metadata \ "creatorRole").text,
         visibleTo = (metadata \ "visibleTo").text,
-        accessibleTo = (metadata \ "accessibleTo").text,
-        sha1checksum = digest.text)
+        accessibleTo = (metadata \ "accessibleTo").text)
     if (result.size != 1)
       throw new RuntimeException(s"Inconsistent file digital object, please inspect $pid manually.")
     result.head
@@ -172,7 +167,7 @@ object FsRdbUpdater {
   def updateOrInsertFile(conn: Connection, file: FileItem): Try[Unit] = {
     try {
       log.info(s"Attempting to update ${file.pid} with $file")
-      val statement = conn.prepareStatement("UPDATE easy_files SET parent_sid = ?, dataset_sid = ?,path  = ?, filename = ?, size = ?, mimetype = ?, creator_role = ?, visible_to = ?, accessible_to = ?, sha1checksum = ? WHERE pid = ?")
+      val statement = conn.prepareStatement("UPDATE easy_files SET parent_sid = ?, dataset_sid = ?,path  = ?, filename = ?, size = ?, mimetype = ?, creator_role = ?, visible_to = ?, accessible_to = ? WHERE pid = ?")
       statement.setString(1, file.parentSid)
       statement.setString(2, file.datasetSid)
       statement.setString(3, file.path)
@@ -182,8 +177,7 @@ object FsRdbUpdater {
       statement.setString(7, file.creatorRole)
       statement.setString(8, file.visibleTo)
       statement.setString(9, file.accessibleTo)
-      statement.setString(10, file.sha1checksum)
-      statement.setString(11, file.pid)
+      statement.setString(10, file.pid)
       val result = statement.executeUpdate()
       statement.closeOnCompletion()
       if (result == 1)
@@ -197,7 +191,7 @@ object FsRdbUpdater {
 
   def insertFile(conn: Connection, file: FileItem): Try[Unit] = Try {
     log.info(s"Attempting to insert ${file.pid}")
-    val statement = conn.prepareStatement("INSERT INTO easy_files (pid,parent_sid,dataset_sid,path,filename,size,mimetype,creator_role,visible_to,accessible_to,sha1checksum) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+    val statement = conn.prepareStatement("INSERT INTO easy_files (pid,parent_sid,dataset_sid,path,filename,size,mimetype,creator_role,visible_to,accessible_to) VALUES (?,?,?,?,?,?,?,?,?,?)")
     statement.setString(1, file.pid)
     statement.setString(2, file.parentSid)
     statement.setString(3, file.datasetSid)
@@ -208,7 +202,6 @@ object FsRdbUpdater {
     statement.setString(8, file.creatorRole)
     statement.setString(9, file.visibleTo)
     statement.setString(10, file.accessibleTo)
-    statement.setString(11, file.sha1checksum)
     statement.executeUpdate()
     statement.closeOnCompletion()
   }
