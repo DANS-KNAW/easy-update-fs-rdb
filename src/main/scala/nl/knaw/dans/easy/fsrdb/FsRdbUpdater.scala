@@ -18,10 +18,9 @@ object FsRdbUpdater {
   val NS_EASY_FOLDER = "easy-folder"
   val namespaces = List(NS_EASY_FILE, NS_EASY_FOLDER)
 
-  def run()(implicit s: Settings) {
-    FedoraRequest.setDefaultClient(new FedoraClient(s.fedoraCredentials))
-
-    val result = for {
+  def run()(implicit s: Settings): Try[Unit] =
+    for {
+      _ <- Try { FedoraRequest.setDefaultClient(new FedoraClient(s.fedoraCredentials)) }
       _ <- existsDataset()
       pids <- findPids()
       _ = pids.foreach(pid => log.info(s"Found digital object: $pid"))
@@ -29,16 +28,13 @@ object FsRdbUpdater {
       _ <- updateDB(items)
     } yield log.info("Completed succesfully")
 
-    result.get
-  }
-
-  def existsDataset()(implicit s: Settings): Try[Unit] = Try {
+  private def existsDataset()(implicit s: Settings): Try[Unit] = Try {
     if(FedoraClient.findObjects()
       .pid().query(s"pid~${s.datasetPid}").execute().getPids.isEmpty)
       throw new RuntimeException(s"Dataset not found: ${s.datasetPid}")
   }
 
-  def getItems(pids: List[String])(implicit s: Settings): List[Try[Item]] = {
+  private def getItems(pids: List[String])(implicit s: Settings): List[Try[Item]] = {
     pids.map(pid =>
       if (pid.startsWith(NS_EASY_FILE))
         getObjectXML(pid).flatMap(getFileItem(pid))
@@ -48,11 +44,11 @@ object FsRdbUpdater {
         Failure(new RuntimeException(s"Unknown namespace for PID: $pid")))
   }
 
-  def getObjectXML(pid: String): Try[Elem] = Try {
+  private def getObjectXML(pid: String): Try[Elem] = Try {
     XML.load(FedoraClient.getObjectXML(pid).execute().getEntityInputStream)
   }
 
-  def getFileItem(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FileItem] = Try {
+  private def getFileItem(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FileItem] = Try {
     val result = for {
       metadataDS <- objectXML \ "datastream"
       if (metadataDS \ "@ID").text == "EASY_FILE_METADATA"
@@ -78,7 +74,7 @@ object FsRdbUpdater {
     result.head
   }
 
-  def getFolderItem(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FolderItem] = Try {
+  private def getFolderItem(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FolderItem] = Try {
     val result = for {
       metadataDS <- objectXML \ "datastream"
       if (metadataDS \ "@ID").text == "EASY_ITEM_CONTAINER_MD"
@@ -99,7 +95,7 @@ object FsRdbUpdater {
     result.head
   }
 
-  def findPids()(implicit s: Settings): Try[List[String]] = Try {
+  private def findPids()(implicit s: Settings): Try[List[String]] = Try {
     val url = s"${s.fedoraCredentials.getBaseUrl}/risearch"
     val response = Http(url)
       .timeout(connTimeoutMs = 10000, readTimeoutMs = 50000)
@@ -120,7 +116,7 @@ object FsRdbUpdater {
       .filter(pid => namespaces.exists(pid.startsWith))
   }
 
-  def updateDB(items: List[Item])(implicit s: Settings): Try[Unit] = Try {
+  private def updateDB(items: List[Item])(implicit s: Settings): Try[Unit] = Try {
     val conn = DriverManager.getConnection(s.postgresURL)
     try {
       items.foreach {
@@ -132,7 +128,7 @@ object FsRdbUpdater {
     }
   }
 
-  def updateOrInsertFolder(conn: Connection, folder: FolderItem): Try[Unit] = {
+  private def updateOrInsertFolder(conn: Connection, folder: FolderItem): Try[Unit] = {
     try {
       log.info(s"Attempting to update ${folder.pid} with $folder")
       val statement = conn.prepareStatement("UPDATE easy_folders SET path = ?, name = ?, parent_sid = ?, dataset_sid = ? WHERE pid = ?")
@@ -152,7 +148,7 @@ object FsRdbUpdater {
     }
   }
 
-  def insertFolder(conn: Connection, folder: FolderItem): Try[Unit] = Try {
+  private def insertFolder(conn: Connection, folder: FolderItem): Try[Unit] = Try {
     log.info(s"Attempting to insert ${folder.pid}")
     val statement = conn.prepareStatement("INSERT INTO easy_folders (pid,path,name,parent_sid,dataset_sid) VALUES (?,?,?,?,?)")
     statement.setString(1, folder.pid)
@@ -164,7 +160,7 @@ object FsRdbUpdater {
     statement.closeOnCompletion()
   }
 
-  def updateOrInsertFile(conn: Connection, file: FileItem): Try[Unit] = {
+  private def updateOrInsertFile(conn: Connection, file: FileItem): Try[Unit] = {
     try {
       log.info(s"Attempting to update ${file.pid} with $file")
       val statement = conn.prepareStatement("UPDATE easy_files SET parent_sid = ?, dataset_sid = ?,path  = ?, filename = ?, size = ?, mimetype = ?, creator_role = ?, visible_to = ?, accessible_to = ? WHERE pid = ?")
@@ -189,7 +185,7 @@ object FsRdbUpdater {
     }
   }
 
-  def insertFile(conn: Connection, file: FileItem): Try[Unit] = Try {
+  private def insertFile(conn: Connection, file: FileItem): Try[Unit] = Try {
     log.info(s"Attempting to insert ${file.pid}")
     val statement = conn.prepareStatement("INSERT INTO easy_files (pid,parent_sid,dataset_sid,path,filename,size,mimetype,creator_role,visible_to,accessible_to) VALUES (?,?,?,?,?,?,?,?,?,?)")
     statement.setString(1, file.pid)
