@@ -18,7 +18,7 @@ object FsRdbUpdater {
   val NS_EASY_FOLDER = "easy-folder"
   val namespaces = List(NS_EASY_FILE, NS_EASY_FOLDER)
 
-  def run()(implicit s: Settings): Try[Unit] =
+  def run(implicit s: Settings): Try[Unit] =
     for {
       _ <- Try { FedoraRequest.setDefaultClient(new FedoraClient(s.fedoraCredentials)) }
       _ <- existsDataset()
