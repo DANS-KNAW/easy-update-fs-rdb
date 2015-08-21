@@ -8,6 +8,6 @@ object CLI {
     implicit val settings = Settings(
       fedoraCredentials = new FedoraCredentials(conf.fedora(), conf.user(), conf.password()),
       postgresURL = conf.db(), conf.dataset())
-    FsRdbUpdater.run()
+    FsRdbUpdater.run.get
   }
 }
