@@ -1,4 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-java -Dlogback.configurationFile=$EASY_UPDATE_FS_RDB_HOME/cfg/logback.xml \
-     -jar $EASY_UPDATE_FS_RDB_HOME/bin/easy-update-fs-rdb.jar $@
+BINPATH=`readlink -f $0`
+APPHOME=`dirname \`dirname $BINPATH \``
+
+java -Dlogback.configurationFile=$APPHOME/cfg/logback.xml \
+     -Dapp.home=$APPHOME \
+     -jar $APPHOME/bin/easy-update-fs-rdb.jar $@
