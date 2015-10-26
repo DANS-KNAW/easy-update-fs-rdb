@@ -7,9 +7,6 @@ import com.yourmediashelf.fedora.client.FedoraCredentials
 import scala.util.{Success, Failure, Try}
 
 package object fsrdb {
-  val homedir = new File(System.getenv("EASY_UPDATE_FS_RDB_HOME"))
-
-
   case class Settings(fedoraCredentials: FedoraCredentials,
                       postgresURL: String,
                       datasetPid: String)

@@ -6,8 +6,7 @@ import java.net.URL
 import org.apache.commons.configuration.PropertiesConfiguration
 import org.rogach.scallop.ScallopConf
 
-class Conf(args: Seq[String]) extends ScallopConf(args) {
-  val props = new PropertiesConfiguration(new File(homedir, "cfg/application.properties"))
+class Conf(args: Seq[String], props: PropertiesConfiguration) extends ScallopConf(args) {
   printedName = "easy-update-fs-rdb"
   version(s"$printedName ${Version()}")
   banner(s"""
