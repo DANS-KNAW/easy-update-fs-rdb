@@ -7,7 +7,7 @@ import com.yourmediashelf.fedora.client.request.FedoraRequest
 import org.slf4j.LoggerFactory
 
 import scala.util.{Failure, Success, Try}
-import scala.xml.{Elem, XML}
+import scala.xml.{NodeSeq, Elem, XML}
 import scalaj.http.Http
 
 object FsRdbUpdater {
@@ -53,11 +53,12 @@ object FsRdbUpdater {
       metadataDS <- objectXML \ "datastream"
       if (metadataDS \ "@ID").text == "EASY_FILE_METADATA"
       metadata <- metadataDS \ "datastreamVersion" \ "xmlContent" \ "file-item-md"
-
       relsExtDS <- objectXML \ "datastream"
       if (relsExtDS \ "@ID").text == "RELS-EXT"
       isMemberOf <- relsExtDS \ "datastreamVersion" \ "xmlContent" \ "RDF" \ "Description" \ "isMemberOf"
       parentSid = isMemberOf.attribute("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "resource").get
+      fileDS <- objectXML \ "datastream"
+      if (fileDS \ "@ID").text == "EASY_FILE"
     } yield FileItem(
         pid = pid,
         parentSid = parentSid.text.replace("info:fedora/", ""),
@@ -68,7 +69,9 @@ object FsRdbUpdater {
         mimetype = (metadata \ "mimeType").text,
         creatorRole = (metadata \ "creatorRole").text,
         visibleTo = (metadata \ "visibleTo").text,
-        accessibleTo = (metadata \ "accessibleTo").text)
+        accessibleTo = (metadata \ "accessibleTo").text,
+        sha1Checksum = if((fileDS \ "datastreamVersion" \ "contentDigest" \ "@DIGEST").size > 0) (fileDS \ "datastreamVersion" \ "contentDigest" \ "@DIGEST").text
+                       else null)
     if (result.size != 1)
       throw new RuntimeException(s"Inconsistent file digital object, please inspect $pid manually.")
     result.head
@@ -163,7 +166,20 @@ object FsRdbUpdater {
   private def updateOrInsertFile(conn: Connection, file: FileItem): Try[Unit] = {
     try {
       log.info(s"Attempting to update ${file.pid} with $file")
-      val statement = conn.prepareStatement("UPDATE easy_files SET parent_sid = ?, dataset_sid = ?,path  = ?, filename = ?, size = ?, mimetype = ?, creator_role = ?, visible_to = ?, accessible_to = ? WHERE pid = ?")
+      val statement = conn.prepareStatement("""
+        UPDATE easy_files
+        SET parent_sid = ?,
+            dataset_sid = ?,
+            path  = ?,
+            filename = ?,
+            size = ?,
+            mimetype = ?,
+            creator_role = ?,
+            visible_to = ?,
+            accessible_to = ?,
+            sha1checksum = ?
+        WHERE pid = ?
+      """)
       statement.setString(1, file.parentSid)
       statement.setString(2, file.datasetSid)
       statement.setString(3, file.path)
@@ -173,7 +189,8 @@ object FsRdbUpdater {
       statement.setString(7, file.creatorRole)
       statement.setString(8, file.visibleTo)
       statement.setString(9, file.accessibleTo)
-      statement.setString(10, file.pid)
+      statement.setString(10, file.sha1Checksum)
+      statement.setString(11, file.pid)
       val result = statement.executeUpdate()
       statement.closeOnCompletion()
       if (result == 1)
@@ -187,7 +204,12 @@ object FsRdbUpdater {
 
   private def insertFile(conn: Connection, file: FileItem): Try[Unit] = Try {
     log.info(s"Attempting to insert ${file.pid}")
-    val statement = conn.prepareStatement("INSERT INTO easy_files (pid,parent_sid,dataset_sid,path,filename,size,mimetype,creator_role,visible_to,accessible_to) VALUES (?,?,?,?,?,?,?,?,?,?)")
+    val statement = conn.prepareStatement("""
+      INSERT INTO easy_files
+        (pid, parent_sid, dataset_sid, path, filename, size, mimetype,
+         creator_role, visible_to, accessible_to, sha1checksum)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)
+      """   )
     statement.setString(1, file.pid)
     statement.setString(2, file.parentSid)
     statement.setString(3, file.datasetSid)
@@ -198,6 +220,7 @@ object FsRdbUpdater {
     statement.setString(8, file.creatorRole)
     statement.setString(9, file.visibleTo)
     statement.setString(10, file.accessibleTo)
+    statement.setString(11, file.sha1Checksum)
     statement.executeUpdate()
     statement.closeOnCompletion()
   }
