@@ -31,7 +31,8 @@ package object fsrdb {
                       mimetype: String,
                       creatorRole: String,
                       visibleTo: String,
-                      accessibleTo: String) extends Item(pid, parentSid, datasetSid, path)
+                      accessibleTo: String,
+                      sha1Checksum: String) extends Item(pid, parentSid, datasetSid, path)
 
   class CompositeException(throwables: List[Throwable]) extends RuntimeException(throwables.foldLeft("")((msg, t) => s"$msg\n${t.getMessage}"))
 
