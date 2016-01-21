@@ -32,22 +32,22 @@ class Conf(args: Seq[String], props: PropertiesConfiguration) extends ScallopCon
             |              [-u <fcrepo-user> \\
             |               -p <fcrepo-password>] \\
             |              [-d <db-connection-url>] \\
-            |               <dataset-pid>
+            |               <dataset-pid>...
             | Options:
             |""".stripMargin)
-  val fedora = opt[URL]("fcrepo-server",
+  val fedora = opt[URL]("fcrepo-server", short = 'f',
     descr = "Fedora Commons Repository Server to connect to ",
     default = Some(new URL(props.getString("default.fcrepo-server"))))
-  val user = opt[String]("fcrepo-user",
+  val user = opt[String]("fcrepo-user", short = 'u',
     descr = "User to connect to fcrepo-server",
     default = Some(props.getString("default.fcrepo-user")))
-  val password = opt[String]("fcrepo-password",
+  val password = opt[String]("fcrepo-password", short = 'p',
     descr = "Password for fcrepo-user",
     default = Some(props.getString("default.fcrepo-password")))
-  val db = opt[String]("db-connection-url",
+  val db = opt[String]("db-connection-url", short = 'd',
     descr="JDBC connection URL to File-system RDB (including user and password parameters)",
     default = Some(props.getString("default.db-connection-url")))
-  val dataset = trailArg[String]("dataset-pid",
-    descr = "Dataset for which to update the file and folder metadata in the File-system RDB",
+  val datasets = trailArg[List[String]]("dataset-pids",
+    descr = "ids of datasets for which to update the file and folder metadata in the File-system RDB",
     required = true)
 }

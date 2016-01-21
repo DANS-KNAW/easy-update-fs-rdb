@@ -36,29 +36,46 @@ object FsRdbUpdater {
   def run(implicit s: Settings): Try[Unit] =
     for {
       _ <- Try { FedoraRequest.setDefaultClient(new FedoraClient(s.fedoraCredentials)) }
-      _ = log.info(s"Checking if dataset ${s.datasetPid} exists")
-      _ <- existsDataset()
-      _ = log.info("Getting digital objects")
-      pids <- findPids()
-      _ = pids.foreach(pid => log.debug(s"Found digital object: $pid"))
-      _ = log.info("Sorting items by path")
-      items <- getItems(pids).sequence.map(_.sortBy(_.path))
-      _ = log.info("Updating database")
-      _ <- updateDB(items)
+      _ = log.info(s"Start updating ${s.datasetPids.size} dataset(s)")
+      _ = s.datasetPids.foreach(datasetPid => updateDataset(datasetPid))
+//      _ = log.info(s"Checking if dataset ${datasetPid} exists")
+//      _ <- existsDataset(datasetPid)
+//      _ = log.info("Getting digital objects")
+//      pids <- findPids()
+//      _ = pids.foreach(pid => log.debug(s"Found digital object: $pid"))
+//      _ = log.info("Sorting items by path")
+//      items <- getItems(pids).sequence.map(_.sortBy(_.path))
+//      _ = log.info("Updating database")
+//      _ <- updateDB(items)
     } yield log.info("Completed succesfully")
 
-  private def existsDataset()(implicit s: Settings): Try[Unit] = Try {
-    if(FedoraClient.findObjects()
-      .pid().query(s"pid~${s.datasetPid}").execute().getPids.isEmpty)
-      throw new RuntimeException(s"Dataset not found: ${s.datasetPid}")
+  private def updateDataset(datasetPid: String)(implicit s: Settings): Try[Unit] = Try {
+    log.info(s"Checking if dataset ${datasetPid} exists")
+    for {
+      _ <- existsDataset(datasetPid)
+      _ = log.info("Getting digital objects")
+      pids <- findPids(datasetPid)
+      _ = pids.foreach(pid => log.debug(s"Found digital object: $pid"))
+      _ = log.info("Sorting items by path")
+      items <- getItems(datasetPid)(pids).sequence.map(_.sortBy(_.path))
+      _ = log.info("Updating database")
+      _ <- updateDB(items)
+    } yield log.info("Dataset updated succesfully")
   }
 
-  private def getItems(pids: List[String])(implicit s: Settings): List[Try[Item]] = {
+  // Note Settings not needed
+  private def existsDataset(datasetPid: String)(implicit s: Settings): Try[Unit] = Try {
+    if(FedoraClient.findObjects()
+      .pid().query(s"pid~${datasetPid}").execute().getPids.isEmpty)
+      throw new RuntimeException(s"Dataset not found: ${datasetPid}")
+  }
+
+  private def getItems(datasetPid: String)(pids: List[String])(implicit s: Settings): List[Try[Item]] = {
     pids.map(pid =>
       if (pid.startsWith(NS_EASY_FILE))
-        getObjectXML(pid).flatMap(getFileItem(pid))
+        getObjectXML(pid).flatMap(getFileItem(datasetPid)(pid))
       else if (pid.startsWith(NS_EASY_FOLDER))
-        getObjectXML(pid).flatMap(getFolderItem(pid))
+        getObjectXML(pid).flatMap(getFolderItem(datasetPid)(pid))
       else
         Failure(new RuntimeException(s"Unknown namespace for PID: $pid")))
   }
@@ -67,7 +84,7 @@ object FsRdbUpdater {
     XML.load(FedoraClient.getObjectXML(pid).execute().getEntityInputStream)
   }
 
-  private def getFileItem(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FileItem] = Try {
+  private def getFileItem(datasetPid: String)(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FileItem] = Try {
     val result = for {
       metadataDS <- objectXML \ "datastream"
       if (metadataDS \ "@ID").text == "EASY_FILE_METADATA"
@@ -82,7 +99,7 @@ object FsRdbUpdater {
     } yield FileItem(
         pid = pid,
         parentSid = parentSid.text.replace("info:fedora/", ""),
-        datasetSid = s.datasetPid,
+        datasetSid = datasetPid,
         path = (metadata \ "path").text,
         filename = (metadata \ "name").text,
         size = (metadata \ "size").text.toInt,
@@ -96,7 +113,7 @@ object FsRdbUpdater {
     result.head
   }
 
-  private def getFolderItem(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FolderItem] = Try {
+  private def getFolderItem(datasetPid: String)(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FolderItem] = Try {
     val result = for {
       metadataDS <- objectXML \ "datastream"
       if (metadataDS \ "@ID").text == "EASY_ITEM_CONTAINER_MD"
@@ -109,7 +126,7 @@ object FsRdbUpdater {
     } yield FolderItem(
         pid = pid,
         parentSid = parentSid.text.replace("info:fedora/", ""),
-        datasetSid = s.datasetPid,
+        datasetSid = datasetPid,
         path = (metadata \ "path").text,
         name = (metadata \ "name").text)
     if (result.size != 1)
@@ -117,7 +134,7 @@ object FsRdbUpdater {
     result.head
   }
 
-  private def findPids()(implicit s: Settings): Try[List[String]] = Try {
+  private def findPids(datasetPid: String)(implicit s: Settings): Try[List[String]] = Try {
     val url = s"${s.fedoraCredentials.getBaseUrl}/risearch"
     val response = Http(url)
       .timeout(connTimeoutMs = 10000, readTimeoutMs = 50000)
@@ -128,7 +145,7 @@ object FsRdbUpdater {
         s"""
            |select ?s
            |from <#ri>
-           |where { ?s <http://dans.knaw.nl/ontologies/relations#isSubordinateTo> <info:fedora/${s.datasetPid}> . }
+           |where { ?s <http://dans.knaw.nl/ontologies/relations#isSubordinateTo> <info:fedora/${datasetPid}> . }
         """.stripMargin)
       .asString
     if (response.code != 200)

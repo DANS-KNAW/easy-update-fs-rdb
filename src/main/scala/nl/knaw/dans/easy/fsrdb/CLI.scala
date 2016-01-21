@@ -26,7 +26,7 @@ object CLI {
     val conf = new Conf(args, props)
     implicit val settings = Settings(
       fedoraCredentials = new FedoraCredentials(conf.fedora(), conf.user(), conf.password()),
-      postgresURL = conf.db(), conf.dataset())
+      postgresURL = conf.db(), conf.datasets())
     FsRdbUpdater.run.get
   }
 }
