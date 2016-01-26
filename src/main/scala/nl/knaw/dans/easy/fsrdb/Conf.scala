@@ -27,16 +27,12 @@ class Conf(args: Seq[String], props: PropertiesConfiguration) extends ScallopCon
   banner(s"""
             | Update the EASY File-system RDB with data about files and folders from the EASY Fedora Commons Repository.
             |
-            | Usage: $printedName
-            |              [-f <fcrepo-server>] \\
-            |              [-u <fcrepo-user> \\
-            |               -p <fcrepo-password>] \\
-            |              [-d <db-connection-url>] \\
-            |               <dataset-pid>...
+            | Usage: $printedName [<option>...] [--file <text-file-with-dataset-id-per-line> | <dataset-pid>...]
+            |
             | Options:
             |""".stripMargin)
   val fedora = opt[URL]("fcrepo-server", short = 'f',
-    descr = "Fedora Commons Repository Server to connect to ",
+    descr = "URL of the Fedora Commons Repository Server to connect to ",
     default = Some(new URL(props.getString("default.fcrepo-server"))))
   val user = opt[String]("fcrepo-user", short = 'u',
     descr = "User to connect to fcrepo-server",
@@ -45,9 +41,13 @@ class Conf(args: Seq[String], props: PropertiesConfiguration) extends ScallopCon
     descr = "Password for fcrepo-user",
     default = Some(props.getString("default.fcrepo-password")))
   val db = opt[String]("db-connection-url", short = 'd',
-    descr="JDBC connection URL to File-system RDB (including user and password parameters)",
+    descr="URL of the JDBC connection to File-system RDB (including user and password parameters)",
     default = Some(props.getString("default.db-connection-url")))
+  val input = opt[File]("file",
+    descr = "Text file with a dataset-id per line")
   val datasets = trailArg[List[String]]("dataset-pids",
-    descr = "ids of datasets for which to update the file and folder metadata in the File-system RDB",
-    required = true)
+    descr = "ids of datasets for which to update the file and folder metadata in the File-system RDB"
+  ,required = false)
+
+  requireOne(input, datasets)
 }

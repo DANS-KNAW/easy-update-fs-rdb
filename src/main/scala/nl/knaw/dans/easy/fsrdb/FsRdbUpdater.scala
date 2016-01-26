@@ -15,15 +15,18 @@
  */
 package nl.knaw.dans.easy.fsrdb
 
+import java.io.FileInputStream
 import java.sql.{Connection, DriverManager}
 
 import com.yourmediashelf.fedora.client.FedoraClient
 import com.yourmediashelf.fedora.client.request.FedoraRequest
+import org.apache.commons.io.IOUtils._
 import org.slf4j.LoggerFactory
 
 import scala.util.{Failure, Success, Try}
 import scala.xml.{NodeSeq, Elem, XML}
 import scalaj.http.Http
+import scala.io.Source
 
 object FsRdbUpdater {
   val loadDriver = classOf[org.postgresql.Driver]
@@ -33,20 +36,21 @@ object FsRdbUpdater {
   val NS_EASY_FOLDER = "easy-folder"
   val namespaces = List(NS_EASY_FILE, NS_EASY_FOLDER)
 
-  def run(implicit s: Settings): Try[Unit] =
+  def run(implicit s: Settings): Try[Unit] = {
+    log.info(s"$s")
+    if (s.input.isDefined)
+      updateDatasets(Source.fromFile(s.input.get).getLines.toList)
+    else if (s.datasetPids.isDefined)
+      updateDatasets(s.datasetPids.get)
+    else
+      throw new IllegalArgumentException("No datasets specified to update")
+  }
+
+  private def updateDatasets(datasetPids: List[String])(implicit s: Settings): Try[Unit] =
     for {
       _ <- Try { FedoraRequest.setDefaultClient(new FedoraClient(s.fedoraCredentials)) }
-      _ = log.info(s"Start updating ${s.datasetPids.size} dataset(s)")
-      _ = s.datasetPids.foreach(datasetPid => updateDataset(datasetPid))
-//      _ = log.info(s"Checking if dataset ${datasetPid} exists")
-//      _ <- existsDataset(datasetPid)
-//      _ = log.info("Getting digital objects")
-//      pids <- findPids()
-//      _ = pids.foreach(pid => log.debug(s"Found digital object: $pid"))
-//      _ = log.info("Sorting items by path")
-//      items <- getItems(pids).sequence.map(_.sortBy(_.path))
-//      _ = log.info("Updating database")
-//      _ <- updateDB(items)
+      _ = log.info(s"Start updating ${datasetPids.size} dataset(s)")
+      _ = datasetPids.foreach(datasetPid => updateDataset(datasetPid))
     } yield log.info("Completed succesfully")
 
   private def updateDataset(datasetPid: String)(implicit s: Settings): Try[Unit] = Try {
@@ -157,11 +161,16 @@ object FsRdbUpdater {
 
   private def updateDB(items: List[Item])(implicit s: Settings): Try[Unit] = Try {
     val conn = DriverManager.getConnection(s.postgresURL)
+    conn.setAutoCommit(false); //transaction
     try {
       items.foreach {
         case folder: FolderItem => updateOrInsertFolder(conn, folder).get
         case file: FileItem => updateOrInsertFile(conn, file).get
       }
+      conn.commit(); //transaction
+    }
+    catch {
+      case t: Throwable => conn.rollback(); Failure(t); //transaction
     } finally {
       conn.close()
     }

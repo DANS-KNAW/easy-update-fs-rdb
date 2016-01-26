@@ -24,7 +24,8 @@ import scala.util.{Success, Failure, Try}
 package object fsrdb {
   case class Settings(fedoraCredentials: FedoraCredentials,
                       postgresURL: String,
-                      datasetPids: List[String])
+                      input: Option[File] = None,
+                      datasetPids: Option[List[String]] = None)
 
   abstract class Item(val pid: String,
                                val parentSid: String,
