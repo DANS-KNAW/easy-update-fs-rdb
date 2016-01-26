@@ -46,14 +46,18 @@ object FsRdbUpdater {
       throw new IllegalArgumentException("No datasets specified to update")
   }
 
-  private def updateDatasets(datasetPids: List[String])(implicit s: Settings): Try[Unit] =
+  private def updateDatasets(datasetPids: List[String])(implicit s: Settings): Try[Unit] = Try {
     for {
-      _ <- Try { FedoraRequest.setDefaultClient(new FedoraClient(s.fedoraCredentials)) }
+      _ <- Try {FedoraRequest.setDefaultClient(new FedoraClient(s.fedoraCredentials))}
+      conn = DriverManager.getConnection(s.postgresURL)
+      _ = conn.setAutoCommit(false)
       _ = log.info(s"Start updating ${datasetPids.size} dataset(s)")
-      _ = datasetPids.foreach(datasetPid => updateDataset(datasetPid))
+      _ = datasetPids.foreach(datasetPid => updateDataset(conn, datasetPid))
+      _ = conn.close()
     } yield log.info("Completed succesfully")
+  }
 
-  private def updateDataset(datasetPid: String)(implicit s: Settings): Try[Unit] = Try {
+  private def updateDataset(conn: Connection, datasetPid: String)(implicit s: Settings): Try[Unit] = Try {
     log.info(s"Checking if dataset ${datasetPid} exists")
     for {
       _ <- existsDataset(datasetPid)
@@ -63,7 +67,7 @@ object FsRdbUpdater {
       _ = log.info("Sorting items by path")
       items <- getItems(datasetPid)(pids).sequence.map(_.sortBy(_.path))
       _ = log.info("Updating database")
-      _ <- updateDB(items)
+      _ <- updateDB(conn, items)
     } yield log.info("Dataset updated succesfully")
   }
 
@@ -159,20 +163,16 @@ object FsRdbUpdater {
       .filter(pid => namespaces.exists(pid.startsWith))
   }
 
-  private def updateDB(items: List[Item])(implicit s: Settings): Try[Unit] = Try {
-    val conn = DriverManager.getConnection(s.postgresURL)
-    conn.setAutoCommit(false); //transaction
+  private def updateDB(conn: Connection, items: List[Item])(implicit s: Settings): Try[Unit] = Try {
     try {
       items.foreach {
         case folder: FolderItem => updateOrInsertFolder(conn, folder).get
         case file: FileItem => updateOrInsertFile(conn, file).get
       }
-      conn.commit(); //transaction
+      conn.commit(); // end transaction
     }
     catch {
-      case t: Throwable => conn.rollback(); Failure(t); //transaction
-    } finally {
-      conn.close()
+      case t: Throwable => conn.rollback(); Failure(t); // undo transaction
     }
   }
 
