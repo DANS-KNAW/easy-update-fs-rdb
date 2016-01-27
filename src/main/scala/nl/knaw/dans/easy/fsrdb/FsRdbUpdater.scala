@@ -38,8 +38,8 @@ object FsRdbUpdater {
 
   def run(implicit s: Settings): Try[Unit] = {
     log.info(s"$s")
-    if (s.input.isDefined)
-      updateDatasets(Source.fromFile(s.input.get).getLines.toList)
+    if (s.datasetPidsFile.isDefined)
+      updateDatasets(Source.fromFile(s.datasetPidsFile.get).getLines.toList)
     else if (s.datasetPids.isDefined)
       updateDatasets(s.datasetPids.get)
     else
@@ -49,7 +49,7 @@ object FsRdbUpdater {
   private def updateDatasets(datasetPids: List[String])(implicit s: Settings): Try[Unit] = Try {
     for {
       _ <- Try {FedoraRequest.setDefaultClient(new FedoraClient(s.fedoraCredentials))}
-      conn = DriverManager.getConnection(s.postgresURL)
+      conn <- Try {DriverManager.getConnection(s.postgresURL)}
       _ = conn.setAutoCommit(false)
       _ = log.info(s"Start updating ${datasetPids.size} dataset(s)")
       _ = datasetPids.foreach(datasetPid => updateDataset(conn, datasetPid))
@@ -71,7 +71,6 @@ object FsRdbUpdater {
     } yield log.info("Dataset updated succesfully")
   }
 
-  // Note Settings not needed
   private def existsDataset(datasetPid: String)(implicit s: Settings): Try[Unit] = Try {
     if(FedoraClient.findObjects()
       .pid().query(s"pid~${datasetPid}").execute().getPids.isEmpty)
@@ -92,7 +91,7 @@ object FsRdbUpdater {
     XML.load(FedoraClient.getObjectXML(pid).execute().getEntityInputStream)
   }
 
-  private def getFileItem(datasetPid: String)(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FileItem] = Try {
+  private def getFileItem(datasetPid: String)(filePid: String)(objectXML: Elem)(implicit s: Settings): Try[FileItem] = Try {
     val result = for {
       metadataDS <- objectXML \ "datastream"
       if (metadataDS \ "@ID").text == "EASY_FILE_METADATA"
@@ -105,7 +104,7 @@ object FsRdbUpdater {
       if (fileDS \ "@ID").text == "EASY_FILE"
       digest = fileDS \ "datastreamVersion" \ "contentDigest" \ "@DIGEST"
     } yield FileItem(
-        pid = pid,
+        pid = filePid,
         parentSid = parentSid.text.replace("info:fedora/", ""),
         datasetSid = datasetPid,
         path = (metadata \ "path").text,
@@ -117,11 +116,11 @@ object FsRdbUpdater {
         accessibleTo = (metadata \ "accessibleTo").text,
         sha1Checksum = if(digest.size > 0) digest.text else null)
     if (result.size != 1)
-      throw new RuntimeException(s"Inconsistent file digital object, please inspect $pid manually.")
+      throw new RuntimeException(s"Inconsistent file digital object, please inspect $filePid manually.")
     result.head
   }
 
-  private def getFolderItem(datasetPid: String)(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FolderItem] = Try {
+  private def getFolderItem(datasetPid: String)(folderPid: String)(objectXML: Elem)(implicit s: Settings): Try[FolderItem] = Try {
     val result = for {
       metadataDS <- objectXML \ "datastream"
       if (metadataDS \ "@ID").text == "EASY_ITEM_CONTAINER_MD"
@@ -132,13 +131,13 @@ object FsRdbUpdater {
       isMemberOf <- relsExtDS \ "datastreamVersion" \ "xmlContent" \ "RDF" \ "Description" \ "isMemberOf"
       parentSid = isMemberOf.attribute("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "resource").get
     } yield FolderItem(
-        pid = pid,
+        pid = folderPid,
         parentSid = parentSid.text.replace("info:fedora/", ""),
         datasetSid = datasetPid,
         path = (metadata \ "path").text,
         name = (metadata \ "name").text)
     if (result.size != 1)
-      throw new RuntimeException(s"Inconsistent folder digital object, please inspect $pid manually.")
+      throw new RuntimeException(s"Inconsistent folder digital object, please inspect $folderPid manually.")
     result.head
   }
 
@@ -266,6 +265,8 @@ object FsRdbUpdater {
     statement.setString(9, file.visibleTo)
     statement.setString(10, file.accessibleTo)
     statement.setString(11, file.sha1Checksum)
+    // test rollback by forcing an error
+    //if(file.pid == "easy-file:1") statement.setString(6, "wrongness")
     statement.executeUpdate()
     statement.closeOnCompletion()
   }

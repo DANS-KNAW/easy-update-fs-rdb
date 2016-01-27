@@ -31,13 +31,13 @@ package object fsrdb {
              ):Settings = new Settings(
       fedoraCredentials,
       postgresURL,
-      input = None,
+      datasetPidsFile = None,
       datasetPids = Some(List(datasetPid))
     )
   }
   case class Settings(fedoraCredentials: FedoraCredentials,
                       postgresURL: String,
-                      input: Option[File] = None,
+                      datasetPidsFile: Option[File] = None,
                       datasetPids: Option[List[String]] = None)
 
   abstract class Item(val pid: String,

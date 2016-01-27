@@ -40,14 +40,14 @@ class Conf(args: Seq[String], props: PropertiesConfiguration) extends ScallopCon
   val password = opt[String]("fcrepo-password", short = 'p',
     descr = "Password for fcrepo-user",
     default = Some(props.getString("default.fcrepo-password")))
-  val db = opt[String]("db-connection-url", short = 'd',
+  val dbConnectionUrl = opt[String]("db-connection-url", short = 'd',
     descr="URL of the JDBC connection to File-system RDB (including user and password parameters)",
     default = Some(props.getString("default.db-connection-url")))
-  val input = opt[File]("file",
+  val datasetPidsFile = opt[File]("file",
     descr = "Text file with a dataset-id per line")
-  val datasets = trailArg[List[String]]("dataset-pids",
+  val datasetPids = trailArg[List[String]]("dataset-pids",
     descr = "ids of datasets for which to update the file and folder metadata in the File-system RDB"
   ,required = false)
 
-  requireOne(input, datasets)
+  requireOne(datasetPidsFile, datasetPids)
 }
