@@ -38,26 +38,36 @@ object FsRdbUpdater {
 
   def run(implicit s: Settings): Try[Unit] = {
     log.info(s"$s")
-    if (s.datasetPidsFile.isDefined)
+
+    val result = if (s.datasetPidsFile.isDefined)
       updateDatasets(Source.fromFile(s.datasetPidsFile.get).getLines.toList)
     else if (s.datasetPids.isDefined)
       updateDatasets(s.datasetPids.get)
     else
-      throw new IllegalArgumentException("No datasets specified to update")
+      Failure(new IllegalArgumentException("No datasets specified to update"))
+
+    result match {
+      case Failure(ex) => log.info(s"Failures : ${ex.getMessage}")
+      case Success(_) => log.info("All completed succesful")
+    }
+    result
   }
 
-  private def updateDatasets(datasetPids: List[String])(implicit s: Settings): Try[Unit] = Try {
+  private def updateDatasets(datasetPids: List[String])(implicit s: Settings): Try[Unit] = {
     for {
       _ <- Try {FedoraRequest.setDefaultClient(new FedoraClient(s.fedoraCredentials))}
+      _ = log.info(s"Set fedora client")
       conn <- Try {DriverManager.getConnection(s.postgresURL)}
-      _ = conn.setAutoCommit(false)
+      _ = log.info(s"Connected to postgres")
+      _ <- Try(conn.setAutoCommit(false))
       _ = log.info(s"Start updating ${datasetPids.size} dataset(s)")
-      _ = datasetPids.foreach(datasetPid => updateDataset(conn, datasetPid))
+      //_ = datasetPids.foreach(datasetPid => updateDataset(conn, datasetPid))
+      _ <- datasetPids.map(datasetPid => updateDataset(conn, datasetPid)).sequence
       _ = conn.close()
     } yield log.info("Completed succesfully")
   }
 
-  private def updateDataset(conn: Connection, datasetPid: String)(implicit s: Settings): Try[Unit] = Try {
+  private def updateDataset(conn: Connection, datasetPid: String)(implicit s: Settings): Try[Unit] = {
     log.info(s"Checking if dataset ${datasetPid} exists")
     for {
       _ <- existsDataset(datasetPid)
@@ -171,7 +181,9 @@ object FsRdbUpdater {
       conn.commit(); // end transaction
     }
     catch {
-      case t: Throwable => conn.rollback(); Failure(t); // undo transaction
+      case t: Throwable =>
+        conn.rollback() // undo transaction
+        Failure(t)
     }
   }
 
