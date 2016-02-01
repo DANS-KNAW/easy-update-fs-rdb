@@ -61,7 +61,6 @@ object FsRdbUpdater {
       _ = log.info(s"Connected to postgres")
       _ <- Try(conn.setAutoCommit(false))
       _ = log.info(s"Start updating ${datasetPids.size} dataset(s)")
-      //_ = datasetPids.foreach(datasetPid => updateDataset(conn, datasetPid))
       _ <- datasetPids.map(datasetPid => updateDataset(conn, datasetPid)).sequence
       _ = conn.close()
     } yield log.info("Completed succesfully")
@@ -71,14 +70,13 @@ object FsRdbUpdater {
     log.info(s"Checking if dataset ${datasetPid} exists")
     for {
       _ <- existsDataset(datasetPid)
-      _ = log.info("Getting digital objects")
+      _ = log.info("Dataset ${datasetPid} exists; Getting digital objects")
       pids <- findPids(datasetPid)
       _ = pids.foreach(pid => log.debug(s"Found digital object: $pid"))
-      _ = log.info("Sorting items by path")
       items <- getItems(datasetPid)(pids).sequence.map(_.sortBy(_.path))
       _ = log.info("Updating database")
       _ <- updateDB(conn, items)
-    } yield log.info("Dataset updated succesfully")
+    } yield log.info("Dataset ${datasetPid} updated succesfully")
   }
 
   private def existsDataset(datasetPid: String)(implicit s: Settings): Try[Unit] = Try {

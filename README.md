@@ -7,7 +7,7 @@ Update the EASY File-system RDB with file and folder metadata from Fedora.
 SYNOPSIS
 --------
 
-    easy-update-fs-rdb <easy-pid>
+    easy-update-fs-rdb [--file <text-file-with-dataset-id-per-line> | <dataset-pid>...]
 
 
 DESCRIPTION
@@ -17,6 +17,9 @@ The EASY File-system RDB (Relational Database) is a component that stores basis 
 the EASY Fedora Commons Repository. Its purpose is to provide quick access to this metadata, which is necessary for
 the EASY Web-UI to function properly. ``easy-update-fs-rdb`` extracts the required file and folder metadata from
 Fedora and updates the File-system RDB with this metadata. 
+
+When an error occurs during the insert/update of the db-records for a dataset, the database transaction for that dataset is 'rolled back'
+and executions stops. Note that in this case any remaining datasets (of the batch) still need to be processed!
 
 ARGUMENTS
 ---------
