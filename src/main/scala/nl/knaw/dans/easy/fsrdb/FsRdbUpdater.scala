@@ -70,13 +70,13 @@ object FsRdbUpdater {
     log.info(s"Checking if dataset ${datasetPid} exists")
     for {
       _ <- existsDataset(datasetPid)
-      _ = log.info("Dataset ${datasetPid} exists; Getting digital objects")
+      _ = log.info(s"Dataset ${datasetPid} exists; Getting digital objects")
       pids <- findPids(datasetPid)
       _ = pids.foreach(pid => log.debug(s"Found digital object: $pid"))
       items <- getItems(datasetPid)(pids).sequence.map(_.sortBy(_.path))
       _ = log.info("Updating database")
       _ <- updateDB(conn, items)
-    } yield log.info("Dataset ${datasetPid} updated succesfully")
+    } yield log.info(s"Dataset ${datasetPid} updated succesfully")
   }
 
   private def existsDataset(datasetPid: String)(implicit s: Settings): Try[Unit] = Try {
