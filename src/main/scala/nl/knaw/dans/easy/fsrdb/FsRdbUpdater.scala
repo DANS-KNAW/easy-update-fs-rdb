@@ -22,8 +22,9 @@ import com.yourmediashelf.fedora.client.request.FedoraRequest
 import org.slf4j.LoggerFactory
 
 import scala.util.{Failure, Success, Try}
-import scala.xml.{NodeSeq, Elem, XML}
+import scala.xml.{Elem, XML}
 import scalaj.http.Http
+import scala.io.Source
 
 object FsRdbUpdater {
   val loadDriver = classOf[org.postgresql.Driver]
@@ -33,32 +34,61 @@ object FsRdbUpdater {
   val NS_EASY_FOLDER = "easy-folder"
   val namespaces = List(NS_EASY_FILE, NS_EASY_FOLDER)
 
-  def run(implicit s: Settings): Try[Unit] =
-    for {
-      _ <- Try { FedoraRequest.setDefaultClient(new FedoraClient(s.fedoraCredentials)) }
-      _ = log.info(s"Checking if dataset ${s.datasetPid} exists")
-      _ <- existsDataset()
-      _ = log.info("Getting digital objects")
-      pids <- findPids()
-      _ = pids.foreach(pid => log.debug(s"Found digital object: $pid"))
-      _ = log.info("Sorting items by path")
-      items <- getItems(pids).sequence.map(_.sortBy(_.path))
-      _ = log.info("Updating database")
-      _ <- updateDB(items)
-    } yield log.info("Completed succesfully")
+  def run(implicit s: Settings): Try[Unit] = {
+    log.info(s"$s")
 
-  private def existsDataset()(implicit s: Settings): Try[Unit] = Try {
-    if(FedoraClient.findObjects()
-      .pid().query(s"pid~${s.datasetPid}").execute().getPids.isEmpty)
-      throw new RuntimeException(s"Dataset not found: ${s.datasetPid}")
+    val result = if (s.datasetPidsFile.isDefined)
+      updateDatasets(Source.fromFile(s.datasetPidsFile.get).getLines.toList)
+    else if (s.datasetPids.isDefined)
+      updateDatasets(s.datasetPids.get)
+    else
+      Failure(new IllegalArgumentException("No datasets specified to update"))
+
+    result match {
+      case Failure(ex) => log.info(s"Failures : ${ex.getMessage}")
+      case Success(_) => log.info("All completed succesful")
+    }
+    result
   }
 
-  private def getItems(pids: List[String])(implicit s: Settings): List[Try[Item]] = {
+  private def updateDatasets(datasetPids: List[String])(implicit s: Settings): Try[Unit] = {
+    for {
+      _ <- Try {FedoraRequest.setDefaultClient(new FedoraClient(s.fedoraCredentials))}
+      _ = log.info(s"Set fedora client")
+      conn <- Try {DriverManager.getConnection(s.postgresURL)}
+      _ = log.info(s"Connected to postgres")
+      _ <- Try(conn.setAutoCommit(false))
+      _ = log.info(s"Start updating ${datasetPids.size} dataset(s)")
+      _ <- datasetPids.map(datasetPid => updateDataset(conn, datasetPid)).sequence
+      _ = conn.close()
+    } yield log.info("Completed succesfully")
+  }
+
+  private def updateDataset(conn: Connection, datasetPid: String)(implicit s: Settings): Try[Unit] = {
+    log.info(s"Checking if dataset ${datasetPid} exists")
+    for {
+      _ <- existsDataset(datasetPid)
+      _ = log.info(s"Dataset ${datasetPid} exists; Getting digital objects")
+      pids <- findPids(datasetPid)
+      _ = pids.foreach(pid => log.debug(s"Found digital object: $pid"))
+      items <- getItems(datasetPid)(pids).sequence.map(_.sortBy(_.path))
+      _ = log.info("Updating database")
+      _ <- updateDB(conn, items)
+    } yield log.info(s"Dataset ${datasetPid} updated succesfully")
+  }
+
+  private def existsDataset(datasetPid: String)(implicit s: Settings): Try[Unit] = Try {
+    if(FedoraClient.findObjects()
+      .pid().query(s"pid~${datasetPid}").execute().getPids.isEmpty)
+      throw new RuntimeException(s"Dataset not found: ${datasetPid}")
+  }
+
+  private def getItems(datasetPid: String)(pids: List[String])(implicit s: Settings): List[Try[Item]] = {
     pids.map(pid =>
       if (pid.startsWith(NS_EASY_FILE))
-        getObjectXML(pid).flatMap(getFileItem(pid))
+        getObjectXML(pid).flatMap(getFileItem(datasetPid)(pid))
       else if (pid.startsWith(NS_EASY_FOLDER))
-        getObjectXML(pid).flatMap(getFolderItem(pid))
+        getObjectXML(pid).flatMap(getFolderItem(datasetPid)(pid))
       else
         Failure(new RuntimeException(s"Unknown namespace for PID: $pid")))
   }
@@ -67,7 +97,7 @@ object FsRdbUpdater {
     XML.load(FedoraClient.getObjectXML(pid).execute().getEntityInputStream)
   }
 
-  private def getFileItem(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FileItem] = Try {
+  private def getFileItem(datasetPid: String)(filePid: String)(objectXML: Elem)(implicit s: Settings): Try[FileItem] = Try {
     val result = for {
       metadataDS <- objectXML \ "datastream"
       if (metadataDS \ "@ID").text == "EASY_FILE_METADATA"
@@ -80,9 +110,9 @@ object FsRdbUpdater {
       if (fileDS \ "@ID").text == "EASY_FILE"
       digest = fileDS \ "datastreamVersion" \ "contentDigest" \ "@DIGEST"
     } yield FileItem(
-        pid = pid,
+        pid = filePid,
         parentSid = parentSid.text.replace("info:fedora/", ""),
-        datasetSid = s.datasetPid,
+        datasetSid = datasetPid,
         path = (metadata \ "path").text,
         filename = (metadata \ "name").text,
         size = (metadata \ "size").text.toInt,
@@ -92,11 +122,11 @@ object FsRdbUpdater {
         accessibleTo = (metadata \ "accessibleTo").text,
         sha1Checksum = if(digest.size > 0) digest.text else null)
     if (result.size != 1)
-      throw new RuntimeException(s"Inconsistent file digital object, please inspect $pid manually.")
+      throw new RuntimeException(s"Inconsistent file digital object, please inspect $filePid manually.")
     result.head
   }
 
-  private def getFolderItem(pid: String)(objectXML: Elem)(implicit s: Settings): Try[FolderItem] = Try {
+  private def getFolderItem(datasetPid: String)(folderPid: String)(objectXML: Elem)(implicit s: Settings): Try[FolderItem] = Try {
     val result = for {
       metadataDS <- objectXML \ "datastream"
       if (metadataDS \ "@ID").text == "EASY_ITEM_CONTAINER_MD"
@@ -107,17 +137,17 @@ object FsRdbUpdater {
       isMemberOf <- relsExtDS \ "datastreamVersion" \ "xmlContent" \ "RDF" \ "Description" \ "isMemberOf"
       parentSid = isMemberOf.attribute("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "resource").get
     } yield FolderItem(
-        pid = pid,
+        pid = folderPid,
         parentSid = parentSid.text.replace("info:fedora/", ""),
-        datasetSid = s.datasetPid,
+        datasetSid = datasetPid,
         path = (metadata \ "path").text,
         name = (metadata \ "name").text)
     if (result.size != 1)
-      throw new RuntimeException(s"Inconsistent folder digital object, please inspect $pid manually.")
+      throw new RuntimeException(s"Inconsistent folder digital object, please inspect $folderPid manually.")
     result.head
   }
 
-  private def findPids()(implicit s: Settings): Try[List[String]] = Try {
+  private def findPids(datasetPid: String)(implicit s: Settings): Try[List[String]] = Try {
     val url = s"${s.fedoraCredentials.getBaseUrl}/risearch"
     val response = Http(url)
       .timeout(connTimeoutMs = 10000, readTimeoutMs = 50000)
@@ -128,7 +158,7 @@ object FsRdbUpdater {
         s"""
            |select ?s
            |from <#ri>
-           |where { ?s <http://dans.knaw.nl/ontologies/relations#isSubordinateTo> <info:fedora/${s.datasetPid}> . }
+           |where { ?s <http://dans.knaw.nl/ontologies/relations#isSubordinateTo> <info:fedora/${datasetPid}> . }
         """.stripMargin)
       .asString
     if (response.code != 200)
@@ -138,15 +168,18 @@ object FsRdbUpdater {
       .filter(pid => namespaces.exists(pid.startsWith))
   }
 
-  private def updateDB(items: List[Item])(implicit s: Settings): Try[Unit] = Try {
-    val conn = DriverManager.getConnection(s.postgresURL)
+  private def updateDB(conn: Connection, items: List[Item])(implicit s: Settings): Try[Unit] = Try {
     try {
       items.foreach {
         case folder: FolderItem => updateOrInsertFolder(conn, folder).get
         case file: FileItem => updateOrInsertFile(conn, file).get
       }
-    } finally {
-      conn.close()
+      conn.commit();
+    }
+    catch {
+      case t: Throwable =>
+        conn.rollback()
+        Failure(t)
     }
   }
 

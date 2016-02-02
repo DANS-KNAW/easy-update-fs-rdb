@@ -16,15 +16,29 @@
 package nl.knaw.dans.easy
 
 import java.io.File
+import java.net.URL
 
 import com.yourmediashelf.fedora.client.FedoraCredentials
 
 import scala.util.{Success, Failure, Try}
 
 package object fsrdb {
+  object Settings {
+    /** Backward compatible for EasyIngestFlow */
+    def apply(fedoraCredentials: FedoraCredentials,
+              postgresURL: String,
+              datasetPid: String
+             ):Settings = new Settings(
+      fedoraCredentials,
+      postgresURL,
+      datasetPidsFile = None,
+      datasetPids = Some(List(datasetPid))
+    )
+  }
   case class Settings(fedoraCredentials: FedoraCredentials,
                       postgresURL: String,
-                      datasetPid: String)
+                      datasetPidsFile: Option[File] = None,
+                      datasetPids: Option[List[String]] = None)
 
   abstract class Item(val pid: String,
                                val parentSid: String,
