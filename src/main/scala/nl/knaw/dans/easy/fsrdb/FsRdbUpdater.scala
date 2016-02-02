@@ -15,16 +15,14 @@
  */
 package nl.knaw.dans.easy.fsrdb
 
-import java.io.FileInputStream
 import java.sql.{Connection, DriverManager}
 
 import com.yourmediashelf.fedora.client.FedoraClient
 import com.yourmediashelf.fedora.client.request.FedoraRequest
-import org.apache.commons.io.IOUtils._
 import org.slf4j.LoggerFactory
 
 import scala.util.{Failure, Success, Try}
-import scala.xml.{NodeSeq, Elem, XML}
+import scala.xml.{Elem, XML}
 import scalaj.http.Http
 import scala.io.Source
 
@@ -176,11 +174,11 @@ object FsRdbUpdater {
         case folder: FolderItem => updateOrInsertFolder(conn, folder).get
         case file: FileItem => updateOrInsertFile(conn, file).get
       }
-      conn.commit(); // end transaction
+      conn.commit();
     }
     catch {
       case t: Throwable =>
-        conn.rollback() // undo transaction
+        conn.rollback()
         Failure(t)
     }
   }
@@ -275,8 +273,6 @@ object FsRdbUpdater {
     statement.setString(9, file.visibleTo)
     statement.setString(10, file.accessibleTo)
     statement.setString(11, file.sha1Checksum)
-    // test rollback by forcing an error
-    //if(file.pid == "easy-file:1") statement.setString(6, "wrongness")
     statement.executeUpdate()
     statement.closeOnCompletion()
   }
