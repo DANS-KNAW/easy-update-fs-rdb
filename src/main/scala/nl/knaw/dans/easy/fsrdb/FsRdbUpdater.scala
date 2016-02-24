@@ -169,18 +169,15 @@ object FsRdbUpdater {
   }
 
   private def updateDB(conn: Connection, items: List[Item])(implicit s: Settings): Try[Unit] = Try {
-    try {
-      items.foreach {
-        case folder: FolderItem => updateOrInsertFolder(conn, folder).get
-        case file: FileItem => updateOrInsertFile(conn, file).get
-      }
-      conn.commit();
+    items.foreach {
+      case folder: FolderItem => updateOrInsertFolder(conn, folder).get
+      case file: FileItem => updateOrInsertFile(conn, file).get
     }
-    catch {
-      case t: Throwable =>
-        conn.rollback()
-        Failure(t)
-    }
+    conn.commit();
+  } recoverWith {
+    case t: Throwable =>
+      conn.rollback()
+      Failure(t)
   }
 
   private def updateOrInsertFolder(conn: Connection, folder: FolderItem): Try[Unit] = {
