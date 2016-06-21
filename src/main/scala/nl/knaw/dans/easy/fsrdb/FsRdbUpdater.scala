@@ -65,22 +65,22 @@ object FsRdbUpdater {
   }
 
   private def updateDataset(conn: Connection, datasetPid: String)(implicit s: Settings): Try[Unit] = {
-    log.info(s"Checking if dataset ${datasetPid} exists")
+    log.info(s"Checking if dataset $datasetPid exists")
     for {
       _ <- existsDataset(datasetPid)
-      _ = log.info(s"Dataset ${datasetPid} exists; Getting digital objects")
+      _ = log.info(s"Dataset $datasetPid exists; Getting digital objects")
       pids <- findPids(datasetPid)
       _ = pids.foreach(pid => log.debug(s"Found digital object: $pid"))
       items <- getItems(datasetPid)(pids).sequence.map(_.sortBy(_.path))
       _ = log.info("Updating database")
       _ <- updateDB(conn, items)
-    } yield log.info(s"Dataset ${datasetPid} updated succesfully")
+    } yield log.info(s"Dataset $datasetPid updated succesfully")
   }
 
   private def existsDataset(datasetPid: String)(implicit s: Settings): Try[Unit] = Try {
     if(FedoraClient.findObjects()
-      .pid().query(s"pid~${datasetPid}").execute().getPids.isEmpty)
-      throw new RuntimeException(s"Dataset not found: ${datasetPid}")
+      .pid().query(s"pid~$datasetPid").execute().getPids.isEmpty)
+      throw new RuntimeException(s"Dataset not found: $datasetPid")
   }
 
   private def getItems(datasetPid: String)(pids: List[String])(implicit s: Settings): List[Try[Item]] = {
@@ -115,12 +115,12 @@ object FsRdbUpdater {
         datasetSid = datasetPid,
         path = (metadata \ "path").text,
         filename = (metadata \ "name").text,
-        size = (metadata \ "size").text.toInt,
+        size = (metadata \ "size").text.toLong,
         mimetype = (metadata \ "mimeType").text,
         creatorRole = (metadata \ "creatorRole").text,
         visibleTo = (metadata \ "visibleTo").text,
         accessibleTo = (metadata \ "accessibleTo").text,
-        sha1Checksum = if(digest.size > 0) digest.text else null)
+        sha1Checksum = if(digest.nonEmpty) digest.text else null)
     if (result.size != 1)
       throw new RuntimeException(s"Inconsistent file digital object, please inspect $filePid manually.")
     result.head
@@ -158,7 +158,7 @@ object FsRdbUpdater {
         s"""
            |select ?s
            |from <#ri>
-           |where { ?s <http://dans.knaw.nl/ontologies/relations#isSubordinateTo> <info:fedora/${datasetPid}> . }
+           |where { ?s <http://dans.knaw.nl/ontologies/relations#isSubordinateTo> <info:fedora/$datasetPid> . }
         """.stripMargin)
       .asString
     if (response.code != 200)
@@ -173,7 +173,7 @@ object FsRdbUpdater {
       case folder: FolderItem => updateOrInsertFolder(conn, folder).get
       case file: FileItem => updateOrInsertFile(conn, file).get
     }
-    conn.commit();
+    conn.commit()
   } recoverWith {
     case t: Throwable =>
       conn.rollback()
@@ -233,7 +233,7 @@ object FsRdbUpdater {
       statement.setString(2, file.datasetSid)
       statement.setString(3, file.path)
       statement.setString(4, file.filename)
-      statement.setInt(5, file.size)
+      statement.setLong(5, file.size)
       statement.setString(6, file.mimetype)
       statement.setString(7, file.creatorRole)
       statement.setString(8, file.visibleTo)
@@ -264,7 +264,7 @@ object FsRdbUpdater {
     statement.setString(3, file.datasetSid)
     statement.setString(4, file.path)
     statement.setString(5, file.filename)
-    statement.setInt(6, file.size)
+    statement.setLong(6, file.size)
     statement.setString(7, file.mimetype)
     statement.setString(8, file.creatorRole)
     statement.setString(9, file.visibleTo)

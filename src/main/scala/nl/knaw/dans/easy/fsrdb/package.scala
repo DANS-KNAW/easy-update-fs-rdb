@@ -16,7 +16,6 @@
 package nl.knaw.dans.easy
 
 import java.io.File
-import java.net.URL
 
 import com.yourmediashelf.fedora.client.FedoraCredentials
 
@@ -56,7 +55,7 @@ package object fsrdb {
                       override val datasetSid: String,
                       override val path: String,
                       filename: String,
-                      size: Int,
+                      size: Long,
                       mimetype: String,
                       creatorRole: String,
                       visibleTo: String,
