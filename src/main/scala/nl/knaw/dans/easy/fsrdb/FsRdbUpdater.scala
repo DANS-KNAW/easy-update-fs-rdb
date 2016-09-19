@@ -19,12 +19,13 @@ import java.sql.{Connection, DriverManager}
 
 import com.yourmediashelf.fedora.client.FedoraClient
 import com.yourmediashelf.fedora.client.request.FedoraRequest
+import nl.knaw.dans.lib.error._
 import org.slf4j.LoggerFactory
 
+import scala.io.Source
 import scala.util.{Failure, Success, Try}
 import scala.xml.{Elem, XML}
 import scalaj.http.Http
-import scala.io.Source
 
 object FsRdbUpdater {
   val loadDriver = classOf[org.postgresql.Driver]
@@ -59,7 +60,7 @@ object FsRdbUpdater {
       _ = log.info(s"Connected to postgres")
       _ <- Try(conn.setAutoCommit(false))
       _ = log.info(s"Start updating ${datasetPids.size} dataset(s)")
-      _ <- datasetPids.map(datasetPid => updateDataset(conn, datasetPid)).sequence
+      _ <- datasetPids.map(datasetPid => updateDataset(conn, datasetPid)).collectResults
       _ = conn.close()
     } yield log.info("Completed succesfully")
   }
@@ -71,7 +72,7 @@ object FsRdbUpdater {
       _ = log.info(s"Dataset $datasetPid exists; Getting digital objects")
       pids <- findPids(datasetPid)
       _ = pids.foreach(pid => log.debug(s"Found digital object: $pid"))
-      items <- getItems(datasetPid)(pids).sequence.map(_.sortBy(_.path))
+      items <- getItems(datasetPid)(pids).collectResults.map(_.sortBy(_.path))
       _ = log.info("Updating database")
       _ <- updateDB(conn, items)
     } yield log.info(s"Dataset $datasetPid updated succesfully")
