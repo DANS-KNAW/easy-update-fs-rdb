@@ -47,7 +47,7 @@ object FsRdbUpdater {
 
     result match {
       case Failure(ex) => log.info(s"Failures : ${ex.getMessage}")
-      case Success(_) => log.info("All completed succesful")
+      case Success(_) => log.info("All completed succesfully")
     }
     result
   }
