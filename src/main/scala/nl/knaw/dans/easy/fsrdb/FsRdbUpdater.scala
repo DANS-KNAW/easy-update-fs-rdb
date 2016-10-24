@@ -67,15 +67,22 @@ object FsRdbUpdater {
 
   private def updateDataset(conn: Connection, datasetPid: String)(implicit s: Settings): Try[Unit] = {
     log.info(s"Checking if dataset $datasetPid exists")
-    for {
+    val result = for {
       _ <- existsDataset(datasetPid)
       _ = log.info(s"Dataset $datasetPid exists; Getting digital objects")
       pids <- findPids(datasetPid)
       _ = pids.foreach(pid => log.debug(s"Found digital object: $pid"))
       items <- getItems(datasetPid)(pids).collectResults.map(_.sortBy(_.path))
       _ = log.info("Updating database")
-      _ <- updateDB(conn, items)
+      _ <- deleteDatasetItems(conn, datasetPid)
+      _ <- addDatasetItems(conn, items)
+      _ <- Try (conn.commit())
     } yield log.info(s"Dataset $datasetPid updated succesfully")
+    result.recoverWith { // TODO Replace with doOnError when we add it to dans-scala-lib
+      case t: Throwable =>
+        conn.rollback()
+        Failure(t)
+    }
   }
 
   private def existsDataset(datasetPid: String)(implicit s: Settings): Try[Unit] = Try {
@@ -169,36 +176,11 @@ object FsRdbUpdater {
       .filter(pid => namespaces.exists(pid.startsWith))
   }
 
-  private def updateDB(conn: Connection, items: List[Item])(implicit s: Settings): Try[Unit] = Try {
-    items.foreach {
-      case folder: FolderItem => updateOrInsertFolder(conn, folder).get
-      case file: FileItem => updateOrInsertFile(conn, file).get
-    }
-    conn.commit()
-  } recoverWith {
-    case t: Throwable =>
-      conn.rollback()
-      Failure(t)
-  }
-
-  private def updateOrInsertFolder(conn: Connection, folder: FolderItem): Try[Unit] = {
-    try {
-      log.debug(s"Attempting to update ${folder.pid} with $folder")
-      val statement = conn.prepareStatement("UPDATE easy_folders SET path = ?, name = ?, parent_sid = ?, dataset_sid = ? WHERE pid = ?")
-      statement.setString(1, folder.path)
-      statement.setString(2, folder.name)
-      statement.setString(3, folder.parentSid)
-      statement.setString(4, folder.datasetSid)
-      statement.setString(5, folder.pid)
-      val result = statement.executeUpdate()
-      statement.closeOnCompletion()
-      if (result == 1)
-        Success(Unit)
-      else
-        insertFolder(conn, folder)
-    } catch {
-      case t: Throwable => Failure(t)
-    }
+  private def addDatasetItems(conn: Connection, items: List[Item])(implicit s: Settings): Try[Unit] = {
+    items.map {
+        case folder: FolderItem => insertFolder(conn, folder)
+        case file: FileItem => insertFile(conn, file)
+    }.collectResults.map(_ => ())
   }
 
   private def insertFolder(conn: Connection, folder: FolderItem): Try[Unit] = Try {
@@ -211,45 +193,6 @@ object FsRdbUpdater {
     statement.setString(5, folder.datasetSid)
     statement.executeUpdate()
     statement.closeOnCompletion()
-  }
-
-  private def updateOrInsertFile(conn: Connection, file: FileItem): Try[Unit] = {
-    try {
-      log.debug(s"Attempting to update ${file.pid} with $file")
-      val statement = conn.prepareStatement("""
-        UPDATE easy_files
-        SET parent_sid = ?,
-            dataset_sid = ?,
-            path  = ?,
-            filename = ?,
-            size = ?,
-            mimetype = ?,
-            creator_role = ?,
-            visible_to = ?,
-            accessible_to = ?,
-            sha1checksum = ?
-        WHERE pid = ?
-      """)
-      statement.setString(1, file.parentSid)
-      statement.setString(2, file.datasetSid)
-      statement.setString(3, file.path)
-      statement.setString(4, file.filename)
-      statement.setLong(5, file.size)
-      statement.setString(6, file.mimetype)
-      statement.setString(7, file.creatorRole)
-      statement.setString(8, file.visibleTo)
-      statement.setString(9, file.accessibleTo)
-      statement.setString(10, file.sha1Checksum)
-      statement.setString(11, file.pid)
-      val result = statement.executeUpdate()
-      statement.closeOnCompletion()
-      if (result == 1)
-        Success(Unit)
-      else
-        insertFile(conn, file)
-    } catch {
-      case t: Throwable => Failure(t)
-    }
   }
 
   private def insertFile(conn: Connection, file: FileItem): Try[Unit] = Try {
@@ -273,6 +216,18 @@ object FsRdbUpdater {
     statement.setString(11, file.sha1Checksum)
     statement.executeUpdate()
     statement.closeOnCompletion()
+  }
+
+  private def deleteDatasetItems(conn: Connection, datasetSid: String): Try[Unit] = Try {
+    log.debug(s"Attempting to delete files and folders for dataset $datasetSid")
+    val deleteFilesStatement = conn.prepareStatement("DELETE FROM easy_files WHERE dataset_sid = ?")
+    deleteFilesStatement.setString(1, datasetSid)
+    val deleteFoldersStatement = conn.prepareStatement("DELETE FROM easy_folders WHERE dataset_sid = ?")
+    deleteFoldersStatement.setString(1, datasetSid)
+    deleteFilesStatement.executeUpdate()
+    deleteFilesStatement.closeOnCompletion()
+    deleteFoldersStatement.executeUpdate()
+    deleteFoldersStatement.closeOnCompletion()
   }
 
 }
