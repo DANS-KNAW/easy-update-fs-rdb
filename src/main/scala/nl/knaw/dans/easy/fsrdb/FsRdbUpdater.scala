@@ -78,7 +78,7 @@ object FsRdbUpdater {
       _ <- addDatasetItems(conn, items)
       _ <- Try (conn.commit())
     } yield log.info(s"Dataset $datasetPid updated succesfully")
-    result. recoverWith {
+    result.recoverWith { // TODO Replace with doOnError when we add it to dans-scala-lib
       case t: Throwable =>
         conn.rollback()
         Failure(t)
