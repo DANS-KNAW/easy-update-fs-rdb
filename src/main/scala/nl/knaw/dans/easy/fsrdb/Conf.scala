@@ -22,6 +22,10 @@ import org.apache.commons.configuration.PropertiesConfiguration
 import org.rogach.scallop.ScallopConf
 
 class Conf(args: Seq[String], props: PropertiesConfiguration) extends ScallopConf(args) {
+
+  appendDefaultToDescription = true
+  editBuilder(_.setHelpWidth(110))
+
   printedName = "easy-update-fs-rdb"
   version(s"$printedName ${Version()}")
   banner(s"""
@@ -31,6 +35,7 @@ class Conf(args: Seq[String], props: PropertiesConfiguration) extends ScallopCon
             |
             | Options:
             |""".stripMargin)
+
   val fedora = opt[URL]("fcrepo-server", short = 'f',
     descr = "URL of the Fedora Commons Repository Server to connect to ",
     default = Some(new URL(props.getString("default.fcrepo-server"))))
@@ -46,8 +51,10 @@ class Conf(args: Seq[String], props: PropertiesConfiguration) extends ScallopCon
   val datasetPidsFile = opt[File]("file",
     descr = "Text file with a dataset-id per line")
   val datasetPids = trailArg[List[String]]("dataset-pids",
-    descr = "ids of datasets for which to update the file and folder metadata in the File-system RDB"
-  ,required = false)
+    descr = "ids of datasets for which to update the file and folder metadata in the File-system RDB",
+    required = false)
 
   requireOne(datasetPidsFile, datasetPids)
+
+  verify()
 }
