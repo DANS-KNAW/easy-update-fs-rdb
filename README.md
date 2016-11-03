@@ -22,9 +22,24 @@ Fedora and updates the File-system RDB with this metadata.
 When an error occurs during the insert/update of the db-records for a dataset, the database transaction for that dataset is 'rolled back'
 and executions stops. Note that in this case any remaining datasets (of the batch) still need to be processed!
 
+
 ARGUMENTS
 ---------
 
+     -d, --db-connection-url  <arg>   URL of the JDBC connection to File-system RDB (including user and password
+                                      parameters)
+                                      (default = jdbc:postgresql://deasy:5432/easy_db?user=easy_webui&password=easy_webui)
+     -p, --fcrepo-password  <arg>     Password for fcrepo-user (default = fedoraAdmin)
+     -f, --fcrepo-server  <arg>       URL of the Fedora Commons Repository Server to connect to
+                                      (default = http://localhost:8080/fedora)
+     -u, --fcrepo-user  <arg>         User to connect to fcrepo-server (default = fedoraAdmin)
+         --file  <arg>                Text file with a dataset-id per line
+         --help                       Show help message
+         --version                    Show version of this program
+
+    trailing arguments:
+     dataset-pids (not required)   ids of datasets for which to update the file and folder metadata in the
+                                   File-system RDB
 
 
 INSTALLATION AND CONFIGURATION
@@ -36,7 +51,6 @@ INSTALLATION AND CONFIGURATION
 2. A new directory called easy-update-fs-rdb-<version> will be created
 3. Create an environment variabele ``EASY_UPDATE_FS_RDB_HOME`` with the directory from step 2 as its value
 4. Add ``$EASY_UPDATE_FS_RDB_HOME/bin`` to your ``PATH`` environment variable.
-
 
 ### Configuration
 
