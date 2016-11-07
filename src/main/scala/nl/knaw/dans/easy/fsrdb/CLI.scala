@@ -27,8 +27,8 @@ object CLI {
     implicit val settings = Settings(
       fedoraCredentials = new FedoraCredentials(conf.fedora(), conf.user(), conf.password()),
       postgresURL = conf.dbConnectionUrl(),
-      datasetPidsFile = conf.datasetPidsFile.get,
-      datasetPids = conf.datasetPids.get)
+      datasetPidsFile = conf.datasetPidsFile.toOption,
+      datasetPids = conf.datasetPids.toOption)
     FsRdbUpdater.run.get
   }
 }
