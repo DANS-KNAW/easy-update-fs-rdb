@@ -30,7 +30,7 @@ class CommandLineOptions(args: Seq[String], configuration: Configuration) extend
     s"""
        | Update the EASY File-system RDB with data about files and folders from the EASY Fedora Commons Repository.
        |
-       | Usage: $printedName [--file|-f <text-file-with-dataset-id-per-line> | --dataset-pids|-d <dataset-pid>...]
+       | Usage: $printedName [--file|-f <text-file-with-dataset-id-per-line> | --dataset-pids|-d <dataset-pid>]
        |
        | Options:
        |""".stripMargin)

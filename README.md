@@ -8,7 +8,7 @@ Update the EASY File-system RDB with file and folder metadata from Fedora.
 SYNOPSIS
 --------
 
-    easy-update-fs-rdb [--file <text-file-with-dataset-id-per-line> | <dataset-pid>...]
+    easy-update-fs-rdb [--file|-f <text-file-with-dataset-id-per-line> | --dataset-pids|-d <dataset-pid>]
 
 
 DESCRIPTION
@@ -26,16 +26,11 @@ and executions stops. Note that in this case any remaining datasets (of the batc
 ARGUMENTS
 ---------
 
-     -d, --db-connection-url  <arg>   URL of the JDBC connection to File-system RDB (including user and password
-                                      parameters)
-                                      (default = jdbc:postgresql://deasy:5432/easy_db?user=easy_webui&password=easy_webui)
-     -p, --fcrepo-password  <arg>     Password for fcrepo-user (default = fedoraAdmin)
-     -f, --fcrepo-server  <arg>       URL of the Fedora Commons Repository Server to connect to
-                                      (default = http://localhost:8080/fedora)
-     -u, --fcrepo-user  <arg>         User to connect to fcrepo-server (default = fedoraAdmin)
-         --file  <arg>                Text file with a dataset-id per line
-         --help                       Show help message
-         --version                    Show version of this program
+     -d, --dataset-pids  <arg>...   ids of datasets for which to update the file and folder metadata in the
+                                    File-system RDB
+     -f, --file  <arg>              Text file with a dataset-id per line
+         --help                     Show help message
+         --version                  Show version of this program
 
     trailing arguments:
      dataset-pids (not required)   ids of datasets for which to update the file and folder metadata in the
