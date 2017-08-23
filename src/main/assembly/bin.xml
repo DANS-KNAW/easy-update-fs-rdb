@@ -28,21 +28,21 @@
     <fileSets>
         <fileSet>
             <directory>${project.build.directory}</directory>
-            <outputDirectory>/bin</outputDirectory>
+            <outputDirectory>bin</outputDirectory>
             <includes>
                 <include>*.jar</include>
             </includes>
         </fileSet>
         <fileSet>
             <directory>${project.basedir}/src/main/assembly/dist/bin</directory>
-            <outputDirectory>/bin</outputDirectory>
+            <outputDirectory>bin</outputDirectory>
             <fileMode>0755</fileMode>
         </fileSet>
         <fileSet>
             <directory>${project.basedir}/src/main/assembly/dist</directory>
-            <outputDirectory>/</outputDirectory>
+            <outputDirectory/>
             <excludes>
-                <exclude>/bin/*</exclude>
+                <exclude>bin/*</exclude>
             </excludes>
         </fileSet>
     </fileSets>
