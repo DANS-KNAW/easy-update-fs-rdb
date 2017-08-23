@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <appender name="FILE"
+              class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${user.home}/easy-update-fs-rdb.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${user.home}/easy-update-fs-rdb.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
         <encoder>
-            <Pattern>[%-5level] %msg %n</Pattern>
+            <pattern>[%date{ISO8601}] %-5level %msg%n</pattern>
         </encoder>
     </appender>
-    <root level="error">
-        <appender-ref ref="CONSOLE" />
+    <root level="warn">
+        <appender-ref ref="FILE" />
     </root>
-    <logger name="nl.knaw.dans.easy.fsrdb" level="info" />
+    <logger name="nl.knaw.dans.easy" level="info" />
 </configuration>
