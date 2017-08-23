@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *         http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,13 +26,14 @@ class CommandLineOptions(args: Seq[String], configuration: Configuration) extend
 
   printedName = "easy-update-fs-rdb"
   version(s"$printedName ${ configuration.version }")
-  banner(s"""
-            | Update the EASY File-system RDB with data about files and folders from the EASY Fedora Commons Repository.
-            |
-            | Usage: $printedName [--file|-f <text-file-with-dataset-id-per-line> | --dataset-pids|-d <dataset-pid>...]
-            |
-            | Options:
-            |""".stripMargin)
+  banner(
+    s"""
+       | Update the EASY File-system RDB with data about files and folders from the EASY Fedora Commons Repository.
+       |
+       | Usage: $printedName [--file|-f <text-file-with-dataset-id-per-line> | --dataset-pids|-d <dataset-pid>...]
+       |
+       | Options:
+       |""".stripMargin)
 
   val datasetPidsFile: ScallopOption[File] = opt[File]("file",
     descr = "Text file with a dataset-id per line",

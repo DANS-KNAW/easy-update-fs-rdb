@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *         http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,12 +21,12 @@ import com.yourmediashelf.fedora.client.FedoraClient
 import com.yourmediashelf.fedora.client.request.FedoraRequest
 import nl.knaw.dans.lib.error._
 import nl.knaw.dans.lib.logging.DebugEnhancedLogging
+import resource._
 
 import scala.io.Source
 import scala.util.{ Failure, Success, Try }
 import scala.xml.{ Elem, XML }
 import scalaj.http.Http
-import resource._
 
 object FsRdbUpdater extends DebugEnhancedLogging {
   classOf[org.postgresql.Driver]
@@ -109,17 +109,18 @@ object FsRdbUpdater extends DebugEnhancedLogging {
       if (fileDS \ "@ID").text == "EASY_FILE"
       digest = fileDS \ "datastreamVersion" \ "contentDigest" \ "@DIGEST"
     } yield FileItem(
-        pid = filePid,
-        parentSid = parentSid.text.replace("info:fedora/", ""),
-        datasetSid = datasetPid,
-        path = (metadata \ "path").text,
-        filename = (metadata \ "name").text,
-        size = (metadata \ "size").text.toLong,
-        mimetype = (metadata \ "mimeType").text,
-        creatorRole = (metadata \ "creatorRole").text,
-        visibleTo = (metadata \ "visibleTo").text,
-        accessibleTo = (metadata \ "accessibleTo").text,
-        sha1Checksum = if(digest.nonEmpty) digest.text else null)
+      pid = filePid,
+      parentSid = parentSid.text.replace("info:fedora/", ""),
+      datasetSid = datasetPid,
+      path = (metadata \ "path").text,
+      filename = (metadata \ "name").text,
+      size = (metadata \ "size").text.toLong,
+      mimetype = (metadata \ "mimeType").text,
+      creatorRole = (metadata \ "creatorRole").text,
+      visibleTo = (metadata \ "visibleTo").text,
+      accessibleTo = (metadata \ "accessibleTo").text,
+      sha1Checksum = if (digest.nonEmpty) digest.text
+                     else null)
 
     result match {
       case Seq(item) => Success(item)
@@ -138,11 +139,11 @@ object FsRdbUpdater extends DebugEnhancedLogging {
       isMemberOf <- relsExtDS \ "datastreamVersion" \ "xmlContent" \ "RDF" \ "Description" \ "isMemberOf"
       parentSid = isMemberOf.attribute("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "resource").get
     } yield FolderItem(
-        pid = folderPid,
-        parentSid = parentSid.text.replace("info:fedora/", ""),
-        datasetSid = datasetPid,
-        path = (metadata \ "path").text,
-        name = (metadata \ "name").text)
+      pid = folderPid,
+      parentSid = parentSid.text.replace("info:fedora/", ""),
+      datasetSid = datasetPid,
+      path = (metadata \ "path").text,
+      name = (metadata \ "name").text)
 
     result match {
       case Seq(item) => Success(item)
@@ -183,7 +184,7 @@ object FsRdbUpdater extends DebugEnhancedLogging {
   }
 
   private def insertFolder(conn: Connection, folder: FolderItem): Try[Unit] = Try {
-    debug(s"Attempting to insert ${folder.pid}")
+    debug(s"Attempting to insert ${ folder.pid }")
 
     val query = "INSERT INTO easy_folders (pid,path,name,parent_sid,dataset_sid) VALUES (?,?,?,?,?)"
     managed(conn.prepareStatement(query))
@@ -200,7 +201,7 @@ object FsRdbUpdater extends DebugEnhancedLogging {
   }
 
   private def insertFile(conn: Connection, file: FileItem): Try[Unit] = Try {
-    debug(s"Attempting to insert ${file.pid}")
+    debug(s"Attempting to insert ${ file.pid }")
 
     val query = "INSERT INTO easy_files (pid, parent_sid, dataset_sid, path, filename, size, mimetype, creator_role, visible_to, accessible_to, sha1checksum) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
     managed(conn.prepareStatement(query))
