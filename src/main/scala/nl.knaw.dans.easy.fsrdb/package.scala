@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *         http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,27 +20,17 @@ import java.io.File
 import com.yourmediashelf.fedora.client.FedoraCredentials
 
 package object fsrdb {
-  object Settings {
-    /** Backward compatible for EasyIngestFlow */
-    def apply(fedoraCredentials: FedoraCredentials,
-              postgresURL: String,
-              datasetPid: String
-             ):Settings = new Settings(
-      fedoraCredentials,
-      postgresURL,
-      datasetPidsFile = None,
-      datasetPids = Some(List(datasetPid))
-    )
-  }
   case class Settings(fedoraCredentials: FedoraCredentials,
-                      postgresURL: String,
+                      databaseUrl: String,
+                      databaseUser: String,
+                      databasePassword: String,
                       datasetPidsFile: Option[File] = None,
                       datasetPids: Option[List[String]] = None)
 
   abstract class Item(val pid: String,
-                               val parentSid: String,
-                               val datasetSid: String,
-                               val path: String)
+                      val parentSid: String,
+                      val datasetSid: String,
+                      val path: String)
 
   case class FolderItem(override val pid: String,
                         override val parentSid: String,

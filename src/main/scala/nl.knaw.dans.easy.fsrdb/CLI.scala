@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *         http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,20 +15,25 @@
  */
 package nl.knaw.dans.easy.fsrdb
 
-import java.io.File
-
 import com.yourmediashelf.fedora.client.FedoraCredentials
-import org.apache.commons.configuration.PropertiesConfiguration
+import nl.knaw.dans.lib.error._
 
 object CLI {
   def main(args: Array[String]): Unit = {
-    val props = new PropertiesConfiguration(new File(System.getProperty("app.home"), "cfg/application.properties"))
-    val conf = new Conf(args, props)
-    implicit val settings = Settings(
-      fedoraCredentials = new FedoraCredentials(conf.fedora(), conf.user(), conf.password()),
-      postgresURL = conf.dbConnectionUrl(),
-      datasetPidsFile = conf.datasetPidsFile.toOption,
-      datasetPids = conf.datasetPids.toOption)
-    FsRdbUpdater.run.get
+    val configuration = Configuration()
+    val clo = new CommandLineOptions(args, configuration)
+    implicit val settings: Settings = Settings(
+      fedoraCredentials = new FedoraCredentials(
+        configuration.properties.getString("default.fcrepo-server"),
+        configuration.properties.getString("default.fcrepo-user"),
+        configuration.properties.getString("default.fcrepo-password")),
+      databaseUrl = configuration.properties.getString("default.db-connection-url"),
+      databaseUser = configuration.properties.getString("default.db-connection-username"),
+      databasePassword = configuration.properties.getString("default.db-connection-password"),
+      datasetPidsFile = clo.datasetPidsFile.toOption,
+      datasetPids = clo.datasetPids.toOption)
+    FsRdbUpdater.run
+      .doIfSuccess(_ => println("OK: All completed succesfully"))
+      .doIfFailure { case e => println(s"FAILED: ${ e.getMessage }") }
   }
 }
