@@ -29,7 +29,6 @@ import scala.xml.{ Elem, XML }
 import scalaj.http.Http
 
 object FsRdbUpdater extends DebugEnhancedLogging {
-  classOf[org.postgresql.Driver]
 
   private val easyFileNamespace = "easy-file"
   private val easyFolderNamespace = "easy-folder"
@@ -38,12 +37,13 @@ object FsRdbUpdater extends DebugEnhancedLogging {
   def run(implicit s: Settings): Try[Unit] = {
     logger.info(s.toString)
 
-    s.datasetPidsFile
-      .map(file => updateDatasets(Source.fromFile(file).getLines.toList))
-      .orElse(s.datasetPids.map(updateDatasets))
-      .getOrElse(Failure(new IllegalArgumentException("No datasets specified to update")))
-      .doIfSuccess(_ => logger.info("All completed succesfully"))
-      .doIfFailure { case e => logger.info(s"Failures : ${ e.getMessage }") }
+    Try { classOf[org.postgresql.Driver] }
+      .flatMap(_ => s.datasetPidsFile
+        .map(file => updateDatasets(Source.fromFile(file).getLines.toList))
+        .orElse(s.datasetPids.map(updateDatasets))
+        .getOrElse(Failure(new IllegalArgumentException("No datasets specified to update")))
+        .doIfSuccess(_ => logger.info("All completed succesfully"))
+        .doIfFailure { case e => logger.error(s"Failures : ${ e.getMessage }", e) })
   }
 
   private def updateDatasets(datasetPids: List[String])(implicit s: Settings): Try[Unit] = {
