@@ -58,6 +58,7 @@ object FsRdbUpdater extends DebugEnhancedLogging {
           datasetPids.map(updateDataset(conn, _)).collectResults
         })
         .tried
+        .flatten
     } yield logger.info("Completed succesfully")
   }
 
