@@ -25,7 +25,15 @@ package object fsrdb {
                       databaseUser: String,
                       databasePassword: String,
                       datasetPidsFile: Option[File] = None,
-                      datasetPids: Option[List[String]] = None)
+                      datasetPids: Option[List[String]] = None) {
+    override def toString: String = {
+      s"FS-RDB.Settings(Database($databaseUrl, $databaseUser, ****), " +
+        s"Fedora(${ fedoraCredentials.getBaseUrl }, ${ fedoraCredentials.getUsername }, ****), " +
+        s"${ datasetPidsFile.map(file => s"Pids file: $file")
+          .orElse(datasetPids.map(pids => s"Pids: ${pids.mkString("[", ", ", "]")}"))
+          .getOrElse("<no input specified>") })"
+    }
+  }
 
   abstract class Item(val pid: String,
                       val parentSid: String,

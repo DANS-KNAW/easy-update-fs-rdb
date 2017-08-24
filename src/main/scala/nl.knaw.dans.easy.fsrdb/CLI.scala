@@ -32,6 +32,7 @@ object CLI {
       databasePassword = configuration.properties.getString("default.db-connection-password"),
       datasetPidsFile = clo.datasetPidsFile.toOption,
       datasetPids = clo.datasetPids.toOption)
+
     FsRdbUpdater.run
       .doIfSuccess(_ => println("OK: All completed succesfully"))
       .doIfFailure { case e => println(s"FAILED: ${ e.getMessage }") }

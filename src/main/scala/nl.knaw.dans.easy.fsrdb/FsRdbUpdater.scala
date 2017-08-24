@@ -36,7 +36,7 @@ object FsRdbUpdater extends DebugEnhancedLogging {
   private val namespaces = List(easyFileNamespace, easyFolderNamespace)
 
   def run(implicit s: Settings): Try[Unit] = {
-    logger.info(s"$s")
+    logger.info(s.toString)
 
     s.datasetPidsFile
       .map(file => updateDatasets(Source.fromFile(file).getLines.toList))
@@ -186,7 +186,7 @@ object FsRdbUpdater extends DebugEnhancedLogging {
   private def insertFolder(conn: Connection, folder: FolderItem): Try[Unit] = Try {
     debug(s"Attempting to insert ${ folder.pid }")
 
-    val query = "INSERT INTO easy_folders (pid,path,name,parent_sid,dataset_sid) VALUES (?,?,?,?,?)"
+    val query = "INSERT INTO easy_folders (pid,path,name,parent_sid,dataset_sid) VALUES (?,?,?,?,?);"
     managed(conn.prepareStatement(query))
       .map(statement => {
         statement.setString(1, folder.pid)
@@ -203,7 +203,7 @@ object FsRdbUpdater extends DebugEnhancedLogging {
   private def insertFile(conn: Connection, file: FileItem): Try[Unit] = Try {
     debug(s"Attempting to insert ${ file.pid }")
 
-    val query = "INSERT INTO easy_files (pid, parent_sid, dataset_sid, path, filename, size, mimetype, creator_role, visible_to, accessible_to, sha1checksum) VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+    val query = "INSERT INTO easy_files (pid, parent_sid, dataset_sid, path, filename, size, mimetype, creator_role, visible_to, accessible_to, sha1checksum) VALUES (?,?,?,?,?,?,?,?,?,?,?);"
     managed(conn.prepareStatement(query))
       .map(statement => {
         statement.setString(1, file.pid)
@@ -226,7 +226,7 @@ object FsRdbUpdater extends DebugEnhancedLogging {
   private def deleteDatasetItems(conn: Connection, datasetSid: String): Try[Unit] = Try {
     debug(s"Attempting to delete files and folders for dataset $datasetSid")
 
-    val query1 = "DELETE FROM easy_files WHERE dataset_sid = ?"
+    val query1 = "DELETE FROM easy_files WHERE dataset_sid = ?;"
     val delete1 = managed(conn.prepareStatement(query1))
       .map(statement => {
         statement.setString(1, datasetSid)
@@ -234,7 +234,7 @@ object FsRdbUpdater extends DebugEnhancedLogging {
         statement.executeUpdate()
       })
 
-    val query2 = "DELETE FROM easy_folders WHERE dataset_sid = ?"
+    val query2 = "DELETE FROM easy_folders WHERE dataset_sid = ?;"
     val delete2 = managed(conn.prepareStatement(query2))
       .map(statement => {
         statement.setString(1, datasetSid)
