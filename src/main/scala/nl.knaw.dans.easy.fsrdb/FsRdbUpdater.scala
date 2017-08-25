@@ -105,7 +105,7 @@ object FsRdbUpdater extends DebugEnhancedLogging {
       relsExtDS <- objectXML \ "datastream"
       if (relsExtDS \ "@ID").text == "RELS-EXT"
       isMemberOf <- relsExtDS \ "datastreamVersion" \ "xmlContent" \ "RDF" \ "Description" \ "isMemberOf"
-      parentSid = isMemberOf.attribute("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "resource").get
+      parentSid <- isMemberOf.attribute("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "resource").toSeq
       fileDS <- objectXML \ "datastream"
       if (fileDS \ "@ID").text == "EASY_FILE"
       digest = fileDS \ "datastreamVersion" \ "contentDigest" \ "@DIGEST"
@@ -120,8 +120,7 @@ object FsRdbUpdater extends DebugEnhancedLogging {
       creatorRole = (metadata \ "creatorRole").text,
       visibleTo = (metadata \ "visibleTo").text,
       accessibleTo = (metadata \ "accessibleTo").text,
-      sha1Checksum = if (digest.nonEmpty) digest.text
-                     else null)
+      sha1Checksum = Option(digest).filterNot(_.isEmpty).map(_.text))
 
     result match {
       case Seq(item) => Success(item)
@@ -217,7 +216,7 @@ object FsRdbUpdater extends DebugEnhancedLogging {
         statement.setString(8, file.creatorRole)
         statement.setString(9, file.visibleTo)
         statement.setString(10, file.accessibleTo)
-        statement.setString(11, file.sha1Checksum)
+        statement.setString(11, file.sha1Checksum.getOrElse("null"))
 
         statement.executeUpdate()
       })

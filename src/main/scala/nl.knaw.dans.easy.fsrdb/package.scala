@@ -56,5 +56,5 @@ package object fsrdb {
                       creatorRole: String,
                       visibleTo: String,
                       accessibleTo: String,
-                      sha1Checksum: String) extends Item(pid, parentSid, datasetSid, path)
+                      sha1Checksum: Option[String]) extends Item(pid, parentSid, datasetSid, path)
 }
