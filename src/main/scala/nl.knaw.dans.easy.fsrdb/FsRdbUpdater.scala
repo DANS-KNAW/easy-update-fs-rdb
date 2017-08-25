@@ -137,7 +137,7 @@ object FsRdbUpdater extends DebugEnhancedLogging {
       relsExtDS <- objectXML \ "datastream"
       if (relsExtDS \ "@ID").text == "RELS-EXT"
       isMemberOf <- relsExtDS \ "datastreamVersion" \ "xmlContent" \ "RDF" \ "Description" \ "isMemberOf"
-      parentSid = isMemberOf.attribute("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "resource").get
+      parentSid <- isMemberOf.attribute("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "resource").toSeq
     } yield FolderItem(
       pid = folderPid,
       parentSid = parentSid.text.replace("info:fedora/", ""),
