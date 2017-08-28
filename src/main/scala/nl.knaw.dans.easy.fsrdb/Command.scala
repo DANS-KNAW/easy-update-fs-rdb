@@ -18,7 +18,7 @@ package nl.knaw.dans.easy.fsrdb
 import com.yourmediashelf.fedora.client.FedoraCredentials
 import nl.knaw.dans.lib.error._
 
-object CLI {
+object Command {
   def main(args: Array[String]): Unit = {
     val configuration = Configuration()
     val clo = new CommandLineOptions(args, configuration)

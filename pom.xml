@@ -34,7 +34,7 @@
     <inceptionYear>2015</inceptionYear>
 
     <properties>
-        <main-class>nl.knaw.dans.easy.fsrdb.CLI</main-class>
+        <main-class>nl.knaw.dans.easy.fsrdb.Command</main-class>
     </properties>
 
     <scm>
