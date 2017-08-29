@@ -18,23 +18,21 @@ package nl.knaw.dans.easy.fsrdb
 import com.yourmediashelf.fedora.client.FedoraCredentials
 import nl.knaw.dans.lib.error._
 
-object Command {
-  def main(args: Array[String]): Unit = {
-    val configuration = Configuration()
-    val clo = new CommandLineOptions(args, configuration)
-    implicit val settings: Settings = Settings(
-      fedoraCredentials = new FedoraCredentials(
-        configuration.properties.getString("default.fcrepo-server"),
-        configuration.properties.getString("default.fcrepo-user"),
-        configuration.properties.getString("default.fcrepo-password")),
-      databaseUrl = configuration.properties.getString("default.db-connection-url"),
-      databaseUser = configuration.properties.getString("default.db-connection-username"),
-      databasePassword = configuration.properties.getString("default.db-connection-password"),
-      datasetPidsFile = clo.datasetPidsFile.toOption,
-      datasetPids = clo.datasetPids.toOption)
+object Command extends App {
+  val configuration = Configuration()
+  val clo = new CommandLineOptions(args, configuration)
+  implicit val settings: Settings = Settings(
+    fedoraCredentials = new FedoraCredentials(
+      configuration.properties.getString("default.fcrepo-server"),
+      configuration.properties.getString("default.fcrepo-user"),
+      configuration.properties.getString("default.fcrepo-password")),
+    databaseUrl = configuration.properties.getString("default.db-connection-url"),
+    databaseUser = configuration.properties.getString("default.db-connection-username"),
+    databasePassword = configuration.properties.getString("default.db-connection-password"),
+    datasetPidsFile = clo.datasetPidsFile.toOption,
+    datasetPids = clo.datasetPids.toOption)
 
-    FsRdbUpdater.run
-      .doIfSuccess(_ => println("OK: All completed successfully"))
-      .doIfFailure { case e => println(s"FAILED: ${ e.getMessage }") }
-  }
+  FsRdbUpdater.run
+    .doIfSuccess(_ => println("OK: All completed successfully"))
+    .doIfFailure { case e => println(s"FAILED: ${ e.getMessage }") }
 }
