@@ -34,7 +34,7 @@ object Command {
       datasetPids = clo.datasetPids.toOption)
 
     FsRdbUpdater.run
-      .doIfSuccess(_ => println("OK: All completed succesfully"))
+      .doIfSuccess(_ => println("OK: All completed successfully"))
       .doIfFailure { case e => println(s"FAILED: ${ e.getMessage }") }
   }
 }
