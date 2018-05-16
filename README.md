@@ -29,8 +29,8 @@ ARGUMENTS
      -d, --dataset-pids  <arg>...   ids of datasets for which to update the file and folder metadata in the
                                     File-system RDB
      -f, --file  <arg>              Text file with a dataset-id per line
-         --help                     Show help message
-         --version                  Show version of this program
+     -h, --help                     Show help message
+     -v, --version                  Show version of this program
 
     trailing arguments:
      dataset-pids (not required)   ids of datasets for which to update the file and folder metadata in the
