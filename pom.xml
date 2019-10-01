@@ -27,7 +27,7 @@
 
     <groupId>nl.knaw.dans.easy</groupId>
     <artifactId>easy-update-fs-rdb</artifactId>
-    <version>1.3.4</version>
+    <version>1.3.5-SNAPSHOT</version>
 
     <name>EASY Update File-system RDB</name>
     <inceptionYear>2015</inceptionYear>
@@ -38,7 +38,7 @@
 
     <scm>
         <developerConnection>scm:git:https://github.com/DANS-KNAW/${project.artifactId}</developerConnection>
-        <tag>v1.3.4</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <dependencies>
