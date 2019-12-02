@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package nl.knaw.dans.easy.fsrdb
+package nl.knaw.dans.easy.fsrdb.command
 
 import java.io.File
 
