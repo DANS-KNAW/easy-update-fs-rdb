@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package nl.knaw.dans.easy.fsrdb
+package nl.knaw.dans.easy.fsrdb.command
 
 import java.nio.file.Paths
 
 import com.yourmediashelf.fedora.client.FedoraCredentials
 import nl.knaw.dans.lib.error._
+
+import nl.knaw.dans.easy.fsrdb.{Settings, FsRdbUpdater}
 
 object Command extends App {
   val configuration = Configuration(Paths.get(System.getProperty("app.home")))
