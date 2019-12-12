@@ -57,8 +57,8 @@ Prerequisites:
 
 Steps:
     
-    git clone https://github.com/DANS-KNAW/${artifactId}.git
-    cd ${artifactId} 
+    git clone https://github.com/DANS-KNAW/easy-update-fs-rdb.git
+    cd easy-update-fs-rdb 
     mvn clean install
 
 If the `rpm` executable is found at `/usr/local/bin/rpm`, the build profile that includes the RPM 
