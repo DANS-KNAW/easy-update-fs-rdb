@@ -168,7 +168,7 @@ object FsRdbUpdater extends DebugEnhancedLogging {
 
     response.code match {
       case 200 => Try {
-        response.body.lines.toList.drop(1)
+        response.body.linesIterator.toList.drop(1)
           .map(_.replace("info:fedora/", ""))
           .filter(pid => namespaces.exists(pid.startsWith))
       }
