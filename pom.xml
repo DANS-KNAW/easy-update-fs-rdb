@@ -33,7 +33,7 @@
     </properties>
 
     <scm>
-        <developerConnection>scm:git:https://github.com/DANS-KNAW/easy-update-fs-rdb</developerConnection>
+        <developerConnection>scm:git:ssh://github.com/DANS-KNAW/easy-update-fs-rdb</developerConnection>
         <tag>HEAD</tag>
     </scm>
 
